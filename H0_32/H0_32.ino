@@ -88,11 +88,12 @@ char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EM
 // Prototypes
 // !!! Help: http://bit.ly/2l0ZhTa
 
-#define HI     0xFEFE  // 111111101111111 // 1111111011111110
-#define LO     0x0202  // 100000001000000 // 0000001000000010
-#define OPEN   0x02FE  // 111111101000000 // 0000001011111110
+#define HI     0xFEFE  // 1111111011111110
+#define LO     0x0202  // 0000001000000010
+#define OPEN   0x02FE  // 0000001011111110
 
 #define TIMERINTERVALL  13
+#define PAUSE 5
 // Utilities
 elapsedMillis sinceringbuffer;
 
@@ -104,6 +105,9 @@ uint16_t abschnittindex = 0; // aktuelles Element in positionsarray
 // Create an IntervalTimer object 
 IntervalTimer              paketTimer;
 volatile uint16_t          timerintervall = TIMERINTERVALL;
+
+volatile uint8_t pause = PAUSE;
+volatile uint8_t richtung = 1; // vorwaerts
 
 volatile uint8_t     paketcounter = 0;
 
@@ -163,9 +167,14 @@ void OSZI_B_HI(void)
 
 void pakettimerfunction() 
 { 
-   
-   digitalWriteFast(TAKT_PIN, !digitalReadFast(TAKT_PIN)); // LO, OFF 
-   aktualcommand = commandarray0[bytepos];
+   /*
+    commands
+    LO     0x0202  // 0000001000000010
+    OPEN   0x02FE  // 0000001011111110
+    HI     0xFEFE  // 1111111011111110
+    */
+   digitalWriteFast(TAKT_PIN, !digitalReadFast(TAKT_PIN)); // toggle
+   aktualcommand = taskarray[0][bytepos];
    if ((bytepos) == 0)
    {
       OSZI_A_LO();
@@ -192,11 +201,12 @@ void pakettimerfunction()
       {
          bytepos = 0;
          OSZI_A_HI();
+         
       }
    
    }
    
-   paketcounter++;
+   paketcounter++; // jede Lok ein Paket
    
 }
 
@@ -273,6 +283,36 @@ void setup()
       }
       Serial.print("\n");
    }
+   
+   taskarray[0][0] = adressearray[0];
+   taskarray[0][1] = adressearray[1];
+   taskarray[0][2] = adressearray[2];
+   taskarray[0][3] = adressearray[3];
+   taskarray[0][4] = HI; // Lampe
+   taskarray[0][5] = speedarray[0];
+   taskarray[0][6] = speedarray[1];
+   taskarray[0][7] = speedarray[2];
+   taskarray[0][8] = speedarray[3];
+
+   taskarray[0][9] = 0;
+   taskarray[0][10] = 0;
+   taskarray[0][11] = 0;
+   
+   taskarray[0][12] = taskarray[0][0];
+   taskarray[0][13] = taskarray[0][1];
+   taskarray[0][14] = taskarray[0][2];
+   taskarray[0][15] = taskarray[0][3];
+   taskarray[0][16] = taskarray[0][4];
+   taskarray[0][17] = taskarray[0][5];
+   taskarray[0][18] = taskarray[0][6];
+   taskarray[0][19] = taskarray[0][7];
+   taskarray[0][20] = taskarray[0][8];
+
+   
+   
+   
+   
+   //
    
    
    commandarray0[0] = adressearray[0];
@@ -423,59 +463,137 @@ void loop()
          Serial.print(timerintervall);
       }
       #pragma mark TASK 
-      //usbtask = SET_0;
       switch (usbtask)
       {
             
-         case 0xA0:
+         case 0xA0: // address
          {
             commandarray0[0] = tritarray[buffer[8]];
             commandarray0[1] = tritarray[buffer[9]];
             commandarray0[2] = tritarray[buffer[10]];
             commandarray0[3] = tritarray[buffer[11]];
             
-            Serial.print("richtung: ");
-            Serial.println(buffer[16]);
-
-            commandarray0[4] = tritarray[buffer[16]];
+            taskarray[0][0] = tritarray[buffer[8]];
+            taskarray[0][1] = tritarray[buffer[9]];
+            taskarray[0][2] = tritarray[buffer[10]];
+            taskarray[0][3] = tritarray[buffer[11]];
             
-            commandarray0[12] = commandarray0[0];
-            commandarray0[13] = commandarray0[1];
-            commandarray0[14] = commandarray0[2];
-            commandarray0[15] = commandarray0[3];
-            commandarray0[16] = commandarray0[4];
-            Serial.print("speed 0: ");
-            Serial.println(buffer[17]);
-            uint8_t speed = buffer[17];
-            for (uint8_t i=0;i<4;i++)
-            {
-               Serial.print(" i: "); Serial.print(i);
-               Serial.print(" data: ");Serial.print(speed & (1<<i));
-               Serial.print("\n");
-               if (speed & (1<<i))
-               {
-                  Serial.print("HI");
-                  speedarray[i] = HI; 
-                  commandarray0[5+i] = HI;
-                  
-               }
-               else
-               {
-                  Serial.print("LO");
-                  speedarray[i] = LO; 
-                  commandarray0[5+i] = LO;
-               }
-               Serial.print("\n");
-            }
-            commandarray0[17] = commandarray0[5];
-            commandarray0[18] = commandarray0[6];
-            commandarray0[19] = commandarray0[7];
-            commandarray0[20] = commandarray0[8];
-
-  
+            
+            // repetition
+            taskarray[0][12] = taskarray[0][0] ;
+            taskarray[0][13] = taskarray[0][1] ;
+            taskarray[0][14] = taskarray[0][2] ;
+            taskarray[0][15] = taskarray[0][3] ;
             
          }break;
- 
+            
+         case 0xB0: // speed
+         {
+            //Serial.print("usbtaskask 0xB0");
+       //     taskarray[0][4] = tritarray[(buffer[16] & 0x01)]; // Licht, bit 0
+            
+            uint8_t speed_raw = buffer[17]; // 0: halt 1: richtung 2-5: speed
+            uint8_t speed_red = 0;
+            Serial.print("speed_raw 0: ");
+            Serial.println(speed_raw);
+            
+            if (speed_raw < 2) // stillstand oder Richtungswachsel
+            {
+               for (uint8_t i=0;i<4;i++)
+               {
+                  Serial.println("speed_raw 0: HALT");
+                  //Serial.println(speed_raw);
+
+                  taskarray[0][5+i] = LO;
+               }
+               if (speed_raw == 1)
+               {
+                  Serial.println("speed_raw 0: WENDEN");
+                  taskarray[0][5] = HI; // richtungswechsel fuer speed = 1
+               }
+            }
+            else 
+            {
+               speed = speed_raw;
+               
+               Serial.print("speed 0: ");
+               Serial.println(speed);
+               for (uint8_t i=0;i<4;i++)
+               {
+                  Serial.print(" i: "); Serial.print(i);
+                  Serial.print(" data: ");Serial.print(speed & (1<<i));
+                  Serial.print("\n");
+                  if (speed & (1<<i))
+                  {
+                     Serial.print("HI");
+                     speedarray[i] = HI; 
+                     taskarray[0][5+i] = HI;
+                  }
+                  else
+                  {
+                     Serial.print("LO");
+                     speedarray[i] = LO; 
+                     taskarray[0][5+i] = LO;
+                  }
+                  Serial.print("\n");
+               }
+            }
+            
+            for (int i=5; i<9; i++) 
+            {
+               Serial.print(taskarray[0][i]);
+               Serial.print(" ");
+            }
+            Serial.print("\n");
+
+            
+            taskarray[0][17] = taskarray[0][5];
+            taskarray[0][18] = taskarray[0][6];
+            taskarray[0][19] = taskarray[0][7];
+            taskarray[0][20] = taskarray[0][8];
+
+         }break;
+            
+         case 0xC0:
+         {
+            Serial.print("Richtung b 17: ");
+            Serial.println(buffer[17]);
+            taskarray[0][5] = HI; // Richtung Toggeln
+            for (uint8_t i=1;i<4;i++)
+            {
+               Serial.println("speed_raw 0: HALT");
+               
+               taskarray[0][5+i] = LO;
+            }
+            taskarray[0][17] = taskarray[0][5];
+            taskarray[0][18] = taskarray[0][6];
+            taskarray[0][19] = taskarray[0][7];
+            taskarray[0][20] = taskarray[0][8];
+
+            
+          }break;
+
+         case 0xD0:
+         {
+            Serial.print("D0 Funktion b16: ");
+            Serial.println(buffer[16]);
+            if (buffer[16] & 0x01)
+            {
+               Serial.println("D0 Funktion HI");
+               taskarray[0][4] = HI;
+               taskarray[0][16] = HI;
+            }
+            else
+            {
+               Serial.println("D0 Funktion LO");
+               taskarray[0][4] = LO;
+               taskarray[0][16] = LO;
+            }
+            
+            
+         }break;
+
+            
          case 0xA1: // Lok 1
          {
             commandarray1[0] = tritarray[buffer[8]];
@@ -530,6 +648,7 @@ void loop()
            
        
       }// switch
+      Serial.println("USB END");
    } // n>0
    
    
