@@ -21,8 +21,18 @@
 #include "Arduino.h"
 
 #include <ADC.h>
+#include <ADC_util.h>
 
-ADC *adc = new ADC();; // adc object
+#include <SPI.h>
+#include "gpio_MCP23S17.h"
+//#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+
+#include "lcd.h"
+#include "analog.h"
+
+
+ADC *adc = new ADC(); // adc object
 // Set parameters
 
 #define TEST 1
@@ -44,8 +54,11 @@ ADC *adc = new ADC();; // adc object
 #define TAKT_PIN 0
 #define OUT_PIN 1
 
+#define EMITTER_PIN A9
 
-
+#define POT_0_PIN    A0
+#define POT_1_PIN    A1
+#define POT_2_PIN    A2
 
 #define LOKSYNC        7
 
@@ -90,8 +103,18 @@ float sinpos = 0;
 #define SIN_START   0xE0
 #define SIN_STOP   0xE1
 
+#define SPI_CLK   13
+#define SPI_MISO  12
+#define SPI_MOSI  11
+#define SPI_CS 10
 
+gpio_MCP23S17 mcp0(10,0x20);//instance 0 (address A0,A1,A2 tied to 0)
+uint8_t regA = 0x0;
+uint8_t regB = 0;
 
+volatile uint8_t tastencodeA = 0;
+volatile uint8_t tastencodeB = 0;
+uint8_t tastenstatus = 0;
 char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EMPTY"};
 
 // Prototypes
@@ -110,6 +133,8 @@ elapsedMillis sinceringbuffer;
 elapsedMillis sincewegbuffer;
 
 elapsedMillis sinceemitter;
+
+elapsedMillis sincemcp;
 
 uint16_t abschnittindex = 0; // aktuelles Element in positionsarray
 
@@ -130,11 +155,13 @@ volatile uint8_t     paketpos = 0;
 volatile uint8_t     paketmax = 3;
 
 volatile uint8_t  commandpos = 0; // pos im command
-volatile uint8_t bytepos = 0; // pos im Ablauf
+volatile uint8_t  bytepos = 0; // pos im Ablauf
 
 uint16_t tritarray[] = {LO,OPEN,HI};
 
 int achse0_startwert=0;
+
+LiquidCrystal_I2C lcd(0x27,20,4); 
 
 void printHex8(uint8_t data) // prints 8-bit data in hex with leading zeroes
 {
@@ -249,7 +276,7 @@ void ADC_init(void)
    emitter=0; // 
    
    adc->setAveraging(2); // set number of averages 
-   adc->setResolution(10); // set bits of resolution
+   adc->setResolution(8); // set bits of resolution
    adc->setConversionSpeed(ADC_CONVERSION_SPEED::LOW_SPEED);
    adc->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
    adc->setReference(ADC_REFERENCE::REF_3V3, ADC_0);
@@ -302,6 +329,24 @@ void setup()
    digitalWriteFast(OSZI_PULS_A, HIGH); 
    pinMode(OSZI_PULS_B, OUTPUT);
    digitalWriteFast(OSZI_PULS_B, HIGH); 
+   
+   mcp0.begin();
+   /*
+    • PortA registeraddresses range from 00h–0Ah
+    • PortB registeraddresses range from 10h–1Ah
+    PortA output, PortB input: Direction 1 output: direction 0
+    0x0F: A: out B: in
+    */
+
+   //mcp0.gpioPinMode(0x00FF); // A Ausgang, B Eingang
+   mcp0.gpioPinMode(0xFFFF); // alle input
+   
+   //mcp0.portPullup(0x00FF); 
+   mcp0.portPullup(0xFFFF);// alle HI
+   
+   mcp0.gpioPort(0xCC33);
+
+   
    
    usbtask = 0;
    adressearray[0] = LO;
@@ -459,16 +504,54 @@ void setup()
    
    aktualcommand = OPEN;
    
+   pinMode(POT_0_PIN, INPUT);
+   pinMode(POT_1_PIN, INPUT);
+   pinMode(POT_2_PIN, INPUT);
+   pinMode(EMITTER_PIN, INPUT);
+   
    ADC_init();
+   
+   lcd.init();
+   lcd.backlight();
+   lcd.setCursor(0,0);
+   lcd.print("H0-32");
+   _delay_ms(200);
+   lcd.clear();  
 }
 
 // Add loop code
 void loop()
 {
+   if (sincemcp > 10)
+   {
+      tastencodeA = 0xFF - mcp0.gpioReadPortA(); // active taste ist LO > invertieren
+      
+      
+      tastencodeB = 0xFF - mcp0.gpioReadPortB(); // active taste ist LO > invertieren
+      
+      
+      
+      lcd.setCursor(0,1);
+      //lcd.print("         ");
+      tastenstatus |= tastencodeB;
+      
+      lcd.print(tastencodeB);
+      lcd.print("  ");
+      
+   }
+   
    if (sinceemitter > 200)
    {
+   //   tastencodeB = mcp0.gpioReadPortB(); // active taste ist LO > invertieren
+      lcd.setCursor(4,1);
+      lcd.print("     ");
+
+      lcd.setCursor(4,1);
+   //   lcd.print(tastenstatus,BIN);
+      lcd.print(tastenstatus);
+
       sinceemitter = 0;
-      emitter = adc->analogRead(A0);
+      emitter = adc->analogRead(EMITTER_PIN);
       emitterarray[emittermittelcounter & 0x03] = emitter;
       emittermittelcounter++;
       //Serial.print(" data: \t");
@@ -484,6 +567,24 @@ void loop()
 //      Serial.print("emittermittel: ");
 //      Serial.print(emittermittel);
 //      Serial.print("\n");
+      /*
+      lcd.setCursor(6,0);
+      if (emitter < 1000)
+      {
+         lcd.print(emitter);
+      }
+      else 
+      {
+         lcd.print("   ");
+      }
+       */
+      lcd.setCursor(0,1);
+      lcd.print("*");
+      lcd.print(tastencodeB);
+      lcd.print("*");
+      lcd.setCursor(12,1);
+      lcd.print(tastencodeA);
+      //lcd.print("*");
       buffer[10] = 0xAB;
       buffer[12] = emitter & 0x00FF;
       buffer[13] = (emitter & 0xFF00)>>8;
@@ -504,12 +605,26 @@ void loop()
       Serial.print(emittermittel);
       Serial.print("\n");
 
-      
+      uint16_t pot0 = readPot(A0);
+      lcd.setCursor(10,0);
+      if (pot0 < 10)
+      {
+         lcd.print("  ");
+      }
+      else if (pot0 < 100)
+      {
+         lcd.print(" ");
+      }
+      lcd.print(pot0);
    }
    if (sinceblink > 1000)
    {
       sinceblink = 0;
+      //pinMode(LOOPLED, OUTPUT);
       digitalWriteFast(LOOPLED, !digitalReadFast(LOOPLED));
+  //    lcd.setBacklight(1);
+  //    lcd.setCursor(0,0);
+  //    lcd.print("Hello, world!");
      
  
       
@@ -586,7 +701,7 @@ void loop()
    
    #pragma mark USB
    int n;
-   n = RawHID.recv(buffer, 10); // 0 timeout = do not wait
+   n = RawHID.recv(buffer, 10); // 
    if (n > 0) 
    {
       // the computer sent a message.  Display the bits
@@ -657,6 +772,20 @@ void loop()
             
          case 0xB0: // speed
          {
+            
+            // Adresse mitgeben
+            taskarray[0][0] = tritarray[buffer[8]];
+            taskarray[0][1] = tritarray[buffer[9]];
+            taskarray[0][2] = tritarray[buffer[10]];
+            taskarray[0][3] = tritarray[buffer[11]];
+            
+            
+            // repetition
+            taskarray[0][12] = taskarray[0][0] ;
+            taskarray[0][13] = taskarray[0][1] ;
+            taskarray[0][14] = taskarray[0][2] ;
+            taskarray[0][15] = taskarray[0][3] ;
+
             //Serial.print("usbtaskask 0xB0");
        //     taskarray[0][4] = tritarray[(buffer[16] & 0x01)]; // Licht, bit 0
             
@@ -664,9 +793,22 @@ void loop()
             uint8_t speed_red = 0;
             Serial.print("speed_raw 0: ");
             Serial.println(speed_raw);
+            lcd.setCursor(0,0);
+            //lcd.print("Lok0");
+            if (speed_raw < 10)
+            {
+               lcd.print(" ");
+            }
+            else
+            {
+              // lcd.print("speed ");
+            }
+            lcd.print(speed_raw);
+
             
             if (speed_raw < 2) // stillstand oder Richtungswachsel
             {
+ 
                for (uint8_t i=0;i<4;i++)
                {
                   Serial.println("speed_raw 0: HALT");
@@ -678,6 +820,8 @@ void loop()
                {
                   Serial.println("speed_raw 0: WENDEN");
                   taskarray[0][5] = HI; // richtungswechsel fuer speed = 1
+                 
+
                }
             }
             else 
@@ -724,12 +868,13 @@ void loop()
             }
             Serial.print("\n");
 
-            
+            // rep speed
             taskarray[0][17] = taskarray[0][5];
             taskarray[0][18] = taskarray[0][6];
             taskarray[0][19] = taskarray[0][7];
             taskarray[0][20] = taskarray[0][8];
 
+            
          }break;
             
          case 0xC0:
@@ -748,6 +893,8 @@ void loop()
             if (buffer[17] == 1)// Richtung Toggeln
             {
                taskarray[0][5] = HI; 
+               lcd.setCursor(15,0);
+               lcd.print("T");
                
                /*
                for (uint8_t i=1;i<4;i++)
@@ -761,7 +908,10 @@ void loop()
             
             else if (buffer[17] == 0)
             {
-               taskarray[0][5] = LO;  
+               taskarray[0][5] = LO; 
+               lcd.setCursor(15,0);
+               lcd.print(" ");
+
             }
             taskarray[0][17] = taskarray[0][5];
             taskarray[0][18] = taskarray[0][6];
@@ -780,12 +930,19 @@ void loop()
                Serial.println("D0 Funktion HI");
                taskarray[0][4] = HI;
                taskarray[0][16] = HI;
+               lcd.setCursor(12,1);
+               lcd.print("ON ");
+               
+
             }
             else
             {
                Serial.println("D0 Funktion LO");
                taskarray[0][4] = LO;
                taskarray[0][16] = LO;
+               lcd.setCursor(12,1);
+               lcd.print("OFF");
+
             }
             
             
@@ -1001,8 +1158,13 @@ void loop()
       }// switch
       Serial.println("USB END");
    } // n>0
-   
-   
+   /*
+   else 
+   {
+      loknummer =0;
+      
+   }
+   */
 
 #pragma mark sincewegbuffer 
    
