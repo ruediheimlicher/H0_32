@@ -31,6 +31,7 @@
 #include "lcd.h"
 #include "analog.h"
 
+#include <EEPROM.h>
 
 ADC *adc = new ADC(); // adc object
 // Set parameters
@@ -49,24 +50,36 @@ ADC *adc = new ADC(); // adc object
 #define MAXWERT  4096 // Nullpunkt
 
 
-#define LOOPLED 13
+#define LOOPLED A8 // A8
 
 #define TAKT_PIN 0
 #define OUT_PIN 1
 
 #define EMITTER_PIN A9
 
+#define ANZLOKS       3
 #define POT_0_PIN    A0
 #define POT_1_PIN    A1
 #define POT_2_PIN    A2
+#define POT_3_PIN    A3
+#define POT_4_PIN    A4
+#define POT_5_PIN    A5
+#define POT_6_PIN    A6
+#define POT_7_PIN    A7
 
 #define LOKSYNC        7
+
+
 
 #define OSZI_PULS_A        8
 #define OSZI_PULS_B        9
 
 
 byte buffer[64];
+
+byte sendbuffer[64];
+
+
 elapsedMillis msUntilNextSend;
 unsigned int packetCount = 0;
 
@@ -79,8 +92,6 @@ volatile uint16_t aktualcommand = 0;
 volatile uint16_t commandarray0[26] = {0};
 
 volatile uint16_t taskarray[8][32] = {0};
-
-
 
 volatile uint16_t adressearray[4];
 volatile uint16_t speedarray[5];
@@ -115,6 +126,9 @@ uint8_t regB = 0;
 volatile uint8_t tastencodeA = 0;
 volatile uint8_t tastencodeB = 0;
 uint8_t tastenstatus = 0;
+uint8_t potarray[ANZLOKS] = {};
+uint8_t potpinarray[8] = {POT_0_PIN,POT_1_PIN,POT_2_PIN,POT_3_PIN,POT_4_PIN,POT_5_PIN,POT_6_PIN,POT_7_PIN};
+
 char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EMPTY"};
 
 // Prototypes
@@ -124,8 +138,8 @@ char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EM
 #define LO     0x0202  // 0000001000000010
 #define OPEN   0x02FE  // 0000001011111110
 
-#define TIMERINTERVALL  13
-#define PAUSE 10
+#define TIMERINTERVALL  15
+#define PAUSE 12
 // Utilities
 elapsedMillis sinceringbuffer;
 
@@ -142,22 +156,22 @@ uint16_t abschnittindex = 0; // aktuelles Element in positionsarray
 IntervalTimer              paketTimer;
 volatile uint16_t          timerintervall = TIMERINTERVALL;
 
-IntervalTimer             stromTimer;
+IntervalTimer              stromTimer;
 volatile uint16_t          emitter = 0;
 volatile uint16_t          emitterarray[8] = {0};
 volatile uint16_t          emittermittel = 0;
-volatile uint8_t          emittermittelcounter = 0;
-volatile uint8_t          emitterNULL = 330;
-volatile uint8_t pause = PAUSE;
-volatile uint8_t richtung = 1; // vorwaerts
+volatile uint8_t           emittermittelcounter = 0;
+volatile uint8_t           emitterNULL = 330;
+volatile uint8_t           pause = PAUSE;
+volatile uint8_t           richtung = 1; // vorwaerts
 
-volatile uint8_t     paketpos = 0;
-volatile uint8_t     paketmax = 3;
+volatile uint8_t           paketpos = 0;
+volatile uint8_t           paketmax = 3;
 
-volatile uint8_t  commandpos = 0; // pos im command
-volatile uint8_t  bytepos = 0; // pos im Ablauf
+volatile uint8_t           commandpos = 0; // pos im command
+volatile uint8_t           bytepos = 0; // pos im Ablauf
 
-uint16_t tritarray[] = {LO,OPEN,HI};
+uint16_t                   tritarray[] = {LO,OPEN,HI};
 
 int achse0_startwert=0;
 
@@ -220,7 +234,7 @@ void pakettimerfunction()
     */
    digitalWriteFast(TAKT_PIN, !digitalReadFast(TAKT_PIN)); // toggle
    
-   aktualcommand = taskarray[paketpos][bytepos];
+   aktualcommand = taskarray[paketpos][bytepos]; // zu schickendes command
    
    
    if ((bytepos) == 0)
@@ -291,7 +305,10 @@ void ADC_init(void)
 
 void stromtimerfunction()
 {
-   emitter = adc->analogRead(A0);
+   emitter = adc->analogRead(EMITTER_PIN);
+   emitterarray[emittermittelcounter & 0x03] = emitter;
+   emittermittelcounter++;
+   
 }
 
 
@@ -315,7 +332,6 @@ void setup()
    analogWriteFrequency(5, 50);
    Serial.println(F("RawHID H0"));
  
-      
    pinMode(TAKT_PIN, OUTPUT);
    digitalWriteFast(TAKT_PIN, LOW); // LO, OFF 
 
@@ -511,6 +527,10 @@ void setup()
    
    ADC_init();
    
+   
+   
+   EEPROM.write(0,adressearray);
+   
    lcd.init();
    lcd.backlight();
    lcd.setCursor(0,0);
@@ -528,32 +548,28 @@ void loop()
       
       
       tastencodeB = 0xFF - mcp0.gpioReadPortB(); // active taste ist LO > invertieren
-      
-      
-      
-      lcd.setCursor(0,1);
-      //lcd.print("         ");
       tastenstatus |= tastencodeB;
       
-      lcd.print(tastencodeB);
-      lcd.print("  ");
+      // Pot auslesen
+      for (uint8_t i=0;i<ANZLOKS;i++)
+      {
+         potarray[i] = adc->analogRead(potpinarray[i]);
+         sendbuffer[16+i] = potarray[i];
+      }
       
    }
    
    if (sinceemitter > 200)
    {
    //   tastencodeB = mcp0.gpioReadPortB(); // active taste ist LO > invertieren
-      lcd.setCursor(4,1);
-      lcd.print("     ");
-
-      lcd.setCursor(4,1);
+  
+   //   lcd.setCursor(4,1);
    //   lcd.print(tastenstatus,BIN);
-      lcd.print(tastenstatus);
-
+      
       sinceemitter = 0;
       emitter = adc->analogRead(EMITTER_PIN);
-      emitterarray[emittermittelcounter & 0x03] = emitter;
-      emittermittelcounter++;
+  //    emitterarray[emittermittelcounter & 0x03] = emitter;
+  //    emittermittelcounter++;
       //Serial.print(" data: \t");
       for (uint8_t i=0;i<4;i++)
       {
@@ -579,20 +595,24 @@ void loop()
       }
        */
       lcd.setCursor(0,1);
-      lcd.print("*");
-      lcd.print(tastencodeB);
-      lcd.print("*");
-      lcd.setCursor(12,1);
+      lcd.print("A ");
       lcd.print(tastencodeA);
+      lcd.print(" B ");
+   //   lcd.setCursor(12,1);
+      lcd.print(tastencodeB);
+      lcd.print(" ");
+      lcd.print(tastenstatus);
+      
       //lcd.print("*");
-      buffer[10] = 0xAB;
-      buffer[12] = emitter & 0x00FF;
-      buffer[13] = (emitter & 0xFF00)>>8;
-      uint8_t n = RawHID.send(buffer, 10);
+      sendbuffer[10] = 0xAB;
+      sendbuffer[12] = emitter & 0x00FF;
+      sendbuffer[13] = (emitter & 0xFF00)>>8;
+      /*
+      uint8_t n = RawHID.send(sendbuffer, 10);
       if (n > 0) 
       {
-         // Serial.print(F("Transmit packet "));
-         // Serial.println(n);
+          Serial.print(F("Transmit packet "));
+          Serial.println(n);
          // Serial.print(" count: ");
          // Serial.println(packetCount );
          packetCount = packetCount + 1;
@@ -600,11 +620,12 @@ void loop()
       {
          Serial.println(F("Unable to transmit packet"));
       }
-      
+      */
       Serial.print("emittermittel: ");
       Serial.print(emittermittel);
       Serial.print("\n");
 
+      
       uint16_t pot0 = readPot(A0);
       lcd.setCursor(10,0);
       if (pot0 < 10)
@@ -1160,20 +1181,24 @@ void loop()
    } // n>0
    /*
    else 
-   {
-      loknummer =0;
-      
-   }
+    {
+    loknummer =0;
+    taskarray[0][0] = tritarray[buffer[8]];
+    taskarray[0][1] = tritarray[buffer[9]];
+    taskarray[0][2] = tritarray[buffer[10]];
+    taskarray[0][3] = tritarray[buffer[11]];
+     
+    }
    */
 
 #pragma mark sincewegbuffer 
    
    if ((sincewegbuffer > 1000))// && (usbtask == SET_WEG)) // naechster Schritt
    {
-      buffer[10] = 0xAB;
-      buffer[12] = emitter;
+      sendbuffer[10] = 0xAB;
+      sendbuffer[12] = emitter;
       
-      n = RawHID.send(buffer, 100);
+      n = RawHID.send(sendbuffer, 100);
       if (n > 0) 
       {
          //        Serial.print(F("Transmit packet "));
@@ -1255,6 +1280,7 @@ void loop()
       buffer[63] = lowByte(packetCount);
       */
       // actually send the packet
+      /*
       buffer[10] = 0xAB;
       buffer[12] = emitter;
 
@@ -1268,5 +1294,6 @@ void loop()
       {
          Serial.println(F("Unable to transmit packet"));
       }
+       */
    }
 } // loop
