@@ -94,6 +94,7 @@ volatile uint16_t commandarray0[26] = {0};
 volatile uint16_t taskarray[8][32] = {0};
 
 volatile uint16_t adressearray[4];
+volatile uint16_t eepromadressearray[8][4];
 volatile uint16_t speedarray[5];
 
 volatile uint8_t loknummer = 0;
@@ -529,7 +530,7 @@ void setup()
    
    
    
-   EEPROM.write(0,adressearray);
+ //  EEPROM.write(0,eepromadressearray);
    
    lcd.init();
    lcd.backlight();
@@ -725,132 +726,322 @@ void loop()
    n = RawHID.recv(buffer, 10); // 
    if (n > 0) 
    {
-      // the computer sent a message.  Display the bits
-      // of the first byte on pin 0 to 7.  Ignore the
-      // other 63 bytes!
-      //Serial.print(F("Received packet, erstes byte: "));
-      //Serial.println((int)buffer[0]);
-      for (int i=0; i<8; i++) 
-      {
-  //       int b = buffer[0] & (1 << i);
-  //       Serial.print((int)buffer[i]);
-  //       Serial.print("\t");
-         //digitalWrite(i, b);
-      }
- //     Serial.println();
-  //     Serial.print(hb);
- //     Serial.print("\t");
- //     Serial.print(lb);
- //     Serial.println();
-      
-      // ************************************
-      usbtask = buffer[0]; // Auswahl lok
-      // ************************************
-      loknummer = buffer[20];
-      
-      Serial.println(" ");
-      Serial.print("******************  usbtask *** ");
-      printHex8(usbtask);
-      for (int i=0; i<24; i++) 
-      {
-         Serial.print(buffer[i]);
-         Serial.print(" ");
-       }
-      Serial.print("\n");
-      
-      if (timerintervall != buffer[18])
-      {
-         Serial.print("timerintervall changed\n");
+         // the computer sent a message.  Display the bits
+         // of the first byte on pin 0 to 7.  Ignore the
+         // other 63 bytes!
+         //Serial.print(F("Received packet, erstes byte: "));
+         //Serial.println((int)buffer[0]);
+         for (int i=0; i<8; i++) 
+         {
+     //       int b = buffer[0] & (1 << i);
+     //       Serial.print((int)buffer[i]);
+     //       Serial.print("\t");
+            //digitalWrite(i, b);
+         }
+    //     Serial.println();
+     //     Serial.print(hb);
+    //     Serial.print("\t");
+    //     Serial.print(lb);
+    //     Serial.println();
          
-         paketTimer.update(  buffer[18]); 
-         timerintervall = buffer[18];
-         Serial.print(timerintervall);
-      }
-      #pragma mark TASK 
-      switch (usbtask)
-      {
-            
-         case 0xA0: // address
+         // ************************************
+         usbtask = buffer[0]; // Auswahl lok
+         // ************************************
+         loknummer = buffer[20];
+         
+         Serial.println(" ");
+         Serial.print("******************  usbtask *** ");
+         printHex8(usbtask);
+         for (int i=0; i<24; i++) 
          {
-            commandarray0[0] = tritarray[buffer[8]];
-            commandarray0[1] = tritarray[buffer[9]];
-            commandarray0[2] = tritarray[buffer[10]];
-            commandarray0[3] = tritarray[buffer[11]];
-            
-            taskarray[0][0] = tritarray[buffer[8]];
-            taskarray[0][1] = tritarray[buffer[9]];
-            taskarray[0][2] = tritarray[buffer[10]];
-            taskarray[0][3] = tritarray[buffer[11]];
-            
-            
-            // repetition
-            taskarray[0][12] = taskarray[0][0] ;
-            taskarray[0][13] = taskarray[0][1] ;
-            taskarray[0][14] = taskarray[0][2] ;
-            taskarray[0][15] = taskarray[0][3] ;
-            
-         }break;
-            
-         case 0xB0: // speed
+            Serial.print(buffer[i]);
+            Serial.print(" ");
+          }
+         Serial.print("\n");
+         
+         if (timerintervall != buffer[18])
          {
+            Serial.print("timerintervall changed\n");
             
-            // Adresse mitgeben
-            taskarray[0][0] = tritarray[buffer[8]];
-            taskarray[0][1] = tritarray[buffer[9]];
-            taskarray[0][2] = tritarray[buffer[10]];
-            taskarray[0][3] = tritarray[buffer[11]];
-            
-            
-            // repetition
-            taskarray[0][12] = taskarray[0][0] ;
-            taskarray[0][13] = taskarray[0][1] ;
-            taskarray[0][14] = taskarray[0][2] ;
-            taskarray[0][15] = taskarray[0][3] ;
-
-            //Serial.print("usbtaskask 0xB0");
-       //     taskarray[0][4] = tritarray[(buffer[16] & 0x01)]; // Licht, bit 0
-            
-            uint8_t speed_raw = buffer[17]; // 0: halt 1: richtung 2-5: speed
-            uint8_t speed_red = 0;
-            Serial.print("speed_raw 0: ");
-            Serial.println(speed_raw);
-            lcd.setCursor(0,0);
-            //lcd.print("Lok0");
-            if (speed_raw < 10)
+            paketTimer.update(  buffer[18]); 
+            timerintervall = buffer[18];
+            Serial.print(timerintervall);
+         }
+         #pragma mark TASK 
+         switch (usbtask)
+         {
+               
+            case 0xA0: // address
             {
-               lcd.print(" ");
-            }
-            else
-            {
-              // lcd.print("speed ");
-            }
-            lcd.print(speed_raw);
-
             
-            if (speed_raw < 2) // stillstand oder Richtungswachsel
+                   eepromadressearray[0][0] = tritarray[buffer[8]];
+                   eepromadressearray[0][1] = tritarray[buffer[9]];
+                   eepromadressearray[0][2] = tritarray[buffer[10]];
+                   eepromadressearray[0][3] = tritarray[buffer[11]];
+                   
+                   
+                   taskarray[0][0] = tritarray[buffer[8]];
+                   taskarray[0][1] = tritarray[buffer[9]];
+                   taskarray[0][2] = tritarray[buffer[10]];
+                   taskarray[0][3] = tritarray[buffer[11]];
+                   
+                   
+                   // repetition
+                   taskarray[0][12] = taskarray[0][0] ;
+                   taskarray[0][13] = taskarray[0][1] ;
+                   taskarray[0][14] = taskarray[0][2] ;
+                   taskarray[0][15] = taskarray[0][3] ;
+                   
+                }break;
+               
+            case 0xB0: // speed
             {
- 
-               for (uint8_t i=0;i<4;i++)
+               
+               // Adresse mitgeben
+               taskarray[0][0] = tritarray[buffer[8]];
+               taskarray[0][1] = tritarray[buffer[9]];
+               taskarray[0][2] = tritarray[buffer[10]];
+               taskarray[0][3] = tritarray[buffer[11]];
+               
+               eepromadressearray[0][0] = tritarray[buffer[8]];
+               eepromadressearray[0][1] = tritarray[buffer[9]];
+               eepromadressearray[0][2] = tritarray[buffer[10]];
+               eepromadressearray[0][3] = tritarray[buffer[11]];
+               
+               
+               // repetition address
+               taskarray[0][12] = taskarray[0][0] ;
+               taskarray[0][13] = taskarray[0][1] ;
+               taskarray[0][14] = taskarray[0][2] ;
+               taskarray[0][15] = taskarray[0][3] ;
+               
+               //Serial.print("usbtaskask 0xB0");
+               //     taskarray[0][4] = tritarray[(buffer[16] & 0x01)]; // Licht, bit 0
+               
+               uint8_t speed_raw = buffer[17]; // 0: halt 1: richtung 2-5: speed
+               uint8_t speed_red = 0;
+               Serial.print("speed_raw 0: ");
+               Serial.println(speed_raw);
+               lcd.setCursor(0,0);
+               //lcd.print("Lok0");
+               if (speed_raw < 10)
                {
-                  Serial.println("speed_raw 0: HALT");
-                  //Serial.println(speed_raw);
+                  lcd.print(" ");
+               }
+               else
+               {
+                  // lcd.print("speed ");
+               }
+               lcd.print(speed_raw);
+               
+               
+               if (speed_raw < 2) // stillstand oder Richtungswachsel
+               {
+                  
+                  for (uint8_t i=0;i<4;i++)
+                  {
+                     Serial.println("speed_raw 0: HALT");
+                     //Serial.println(speed_raw);
+                     
+                     taskarray[0][5+i] = LO;
+                  }
+                  if (speed_raw == 1)
+                  {
+                     Serial.println("speed_raw 0: WENDEN");
+                     taskarray[0][5] = HI; // richtungswechsel fuer speed = 1
+                     
+                     
+                  }
+               }
+               else 
+               {
+                  speed = speed_raw;
+                  
+                  Serial.print("speed 0: ");
+                  Serial.println(speed);
+                  for (uint8_t i=0;i<4;i++)
+                  {
+                     Serial.print(" i: "); Serial.print(i);
+                     Serial.print(" data: ");Serial.print(speed & (1<<i));
+                     Serial.print("\n");
+                     if (speed & (1<<i))
+                     {
+                        Serial.print("HI");
+                        speedarray[i] = HI; 
+                        //taskarray[0][8-i] = HI;
+                        taskarray[0][5+i] = HI;
+                     }
+                     else
+                     {
+                        Serial.print("LO");
+                        speedarray[i] = LO; 
+                        //taskarray[0][8-i] = LO;
+                        taskarray[0][5+i] = LO;
+                     }
+                     Serial.print("\n");
+                  }
+               }
+               
+               for (int i=5; i<9; i++) 
+               {
+                  if (taskarray[0][i] == 0xFEFE)
+                  {
+                     Serial.print("1");
+                  }
+                  else 
+                  {
+                     Serial.print("0");
+                  }
+                  //Serial.print(taskarray[0][i]);
+                  
+               }
+               Serial.print("\n");
+               
+               // rep speed
+               taskarray[0][17] = taskarray[0][5];
+               taskarray[0][18] = taskarray[0][6];
+               taskarray[0][19] = taskarray[0][7];
+               taskarray[0][20] = taskarray[0][8];
+               
+               
+            }break;
+               
+            case 0xC0:
+            {
+             //  Serial.print("Richtung b 17: ");
+             //  Serial.println(buffer[17]);
+               
+               // Adresse mitgeben
+                taskarray[0][0] = tritarray[buffer[8]];
+                taskarray[0][1] = tritarray[buffer[9]];
+                taskarray[0][2] = tritarray[buffer[10]];
+                taskarray[0][3] = tritarray[buffer[11]];
 
+               
+               // speed auf 0 setzen
+               for (uint8_t i=1;i<4;i++) 
+               {
+                 // Serial.println("speed_raw 0: HALT");
+                  
                   taskarray[0][5+i] = LO;
                }
-               if (speed_raw == 1)
+               
+               if (buffer[17] == 1)// Richtung Toggeln
                {
-                  Serial.println("speed_raw 0: WENDEN");
-                  taskarray[0][5] = HI; // richtungswechsel fuer speed = 1
-                 
+                  taskarray[0][5] = HI; 
+                  lcd.setCursor(15,0);
+                  lcd.print("T");
+                  
+                  /*
+                  for (uint8_t i=1;i<4;i++)
+                  {
+                     Serial.println("speed_raw 0: HALT");
+                     
+                     taskarray[0][5+i] = LO;
+                  }
+                   */
+               }
+               
+               else if (buffer[17] == 0)
+               {
+                  taskarray[0][5] = LO; 
+                  lcd.setCursor(15,0);
+                  lcd.print(" ");
 
                }
-            }
-            else 
-            {
-               speed = speed_raw;
                
-               Serial.print("speed 0: ");
-               Serial.println(speed);
+               // repetition speed 0
+               taskarray[0][17] = taskarray[0][5];
+               taskarray[0][18] = taskarray[0][6];
+               taskarray[0][19] = taskarray[0][7];
+               taskarray[0][20] = taskarray[0][8];
+               
+               // repetition address
+               taskarray[0][12] = taskarray[0][0] ;
+               taskarray[0][13] = taskarray[0][1] ;
+               taskarray[0][14] = taskarray[0][2] ;
+               taskarray[0][15] = taskarray[0][3] ;
+
+               
+            }break;
+
+            case 0xD0:
+            {
+               Serial.print("D0 Funktion b16: ");
+               Serial.println(buffer[16]);
+               
+               // Adresse mitgeben
+                 taskarray[0][0] = tritarray[buffer[8]];
+                 taskarray[0][1] = tritarray[buffer[9]];
+                 taskarray[0][2] = tritarray[buffer[10]];
+                 taskarray[0][3] = tritarray[buffer[11]];
+
+               // repetition address
+                taskarray[0][12] = taskarray[0][0] ;
+                taskarray[0][13] = taskarray[0][1] ;
+                taskarray[0][14] = taskarray[0][2] ;
+                taskarray[0][15] = taskarray[0][3] ;
+
+               
+               if (buffer[16] & 0x01)
+               {
+                  Serial.println("D0 Funktion HI");
+                  taskarray[0][4] = HI;
+                  taskarray[0][16] = HI;
+                  lcd.setCursor(12,1);
+                  lcd.print("ON ");
+                  
+
+               }
+               else
+               {
+                  Serial.println("D0 Funktion LO");
+                  taskarray[0][4] = LO;
+                  taskarray[0][16] = LO;
+                  lcd.setCursor(12,1);
+                  lcd.print("OFF");
+
+               }
+               
+               
+            }break;
+               
+            case 0xE0: // Pause
+            {
+               Serial.print("E0 Pause b16: ");
+               Serial.println(buffer[19]);
+               pause = buffer[19];
+               
+            
+            }break;
+               
+            case 0xA1: // Lok 1
+            {
+               taskarray[1][0] = tritarray[buffer[8]];
+               taskarray[1][1] = tritarray[buffer[9]];
+               taskarray[1][2] = tritarray[buffer[10]];
+               taskarray[1][3] = tritarray[buffer[11]];
+               
+               eepromadressearray[1][0] = tritarray[buffer[8]];
+               eepromadressearray[1][1] = tritarray[buffer[9]];
+               eepromadressearray[1][2] = tritarray[buffer[10]];
+               eepromadressearray[1][3] = tritarray[buffer[11]];
+               
+               
+               Serial.print("richtung 1: ");
+               Serial.println(buffer[16]);
+               
+               taskarray[1][4] = tritarray[buffer[16]];
+               
+               // speed
+               taskarray[1][12] = taskarray[1][0];
+               taskarray[1][13] = taskarray[1][1];
+               taskarray[1][14] = taskarray[1][2];
+               taskarray[1][15] = taskarray[1][3];
+               taskarray[1][16] = taskarray[1][4];
+               Serial.print("speed 1: ");
+               Serial.println(buffer[17]);
+               uint8_t speed = buffer[17];
                for (uint8_t i=0;i<4;i++)
                {
                   Serial.print(" i: "); Serial.print(i);
@@ -860,325 +1051,288 @@ void loop()
                   {
                      Serial.print("HI");
                      speedarray[i] = HI; 
-                     //taskarray[0][8-i] = HI;
-                     taskarray[0][5+i] = HI;
+                     commandarray0[5+i] = HI;
+                     taskarray[1][5+i] = HI;
                   }
                   else
                   {
                      Serial.print("LO");
                      speedarray[i] = LO; 
-                     //taskarray[0][8-i] = LO;
-                     taskarray[0][5+i] = LO;
-                  }
-                  Serial.print("\n");
-               }
-            }
-            
-            for (int i=5; i<9; i++) 
-            {
-               if (taskarray[0][i] == 0xFEFE)
-               {
-                  Serial.print("1");
-               }
-               else 
-               {
-                  Serial.print("0");
-               }
-               //Serial.print(taskarray[0][i]);
-               
-            }
-            Serial.print("\n");
-
-            // rep speed
-            taskarray[0][17] = taskarray[0][5];
-            taskarray[0][18] = taskarray[0][6];
-            taskarray[0][19] = taskarray[0][7];
-            taskarray[0][20] = taskarray[0][8];
-
-            
-         }break;
-            
-         case 0xC0:
-         {
-          //  Serial.print("Richtung b 17: ");
-          //  Serial.println(buffer[17]);
-            
-            // speed auf 0 setzen
-            for (uint8_t i=1;i<4;i++) 
-            {
-              // Serial.println("speed_raw 0: HALT");
-               
-               taskarray[0][5+i] = LO;
-            }
-            
-            if (buffer[17] == 1)// Richtung Toggeln
-            {
-               taskarray[0][5] = HI; 
-               lcd.setCursor(15,0);
-               lcd.print("T");
-               
-               /*
-               for (uint8_t i=1;i<4;i++)
-               {
-                  Serial.println("speed_raw 0: HALT");
-                  
-                  taskarray[0][5+i] = LO;
-               }
-                */
-            }
-            
-            else if (buffer[17] == 0)
-            {
-               taskarray[0][5] = LO; 
-               lcd.setCursor(15,0);
-               lcd.print(" ");
-
-            }
-            taskarray[0][17] = taskarray[0][5];
-            taskarray[0][18] = taskarray[0][6];
-            taskarray[0][19] = taskarray[0][7];
-            taskarray[0][20] = taskarray[0][8];
-            
-            
-         }break;
-
-         case 0xD0:
-         {
-            Serial.print("D0 Funktion b16: ");
-            Serial.println(buffer[16]);
-            if (buffer[16] & 0x01)
-            {
-               Serial.println("D0 Funktion HI");
-               taskarray[0][4] = HI;
-               taskarray[0][16] = HI;
-               lcd.setCursor(12,1);
-               lcd.print("ON ");
-               
-
-            }
-            else
-            {
-               Serial.println("D0 Funktion LO");
-               taskarray[0][4] = LO;
-               taskarray[0][16] = LO;
-               lcd.setCursor(12,1);
-               lcd.print("OFF");
-
-            }
-            
-            
-         }break;
-            
-         case 0xE0: // Pause
-         {
-            Serial.print("E0 Pause b16: ");
-            Serial.println(buffer[19]);
-            pause = buffer[19];
-            
-         
-         }break;
-            
-         case 0xA1: // Lok 1
-         {
-            taskarray[1][0] = tritarray[buffer[8]];
-            taskarray[1][1] = tritarray[buffer[9]];
-            taskarray[1][2] = tritarray[buffer[10]];
-            taskarray[1][3] = tritarray[buffer[11]];
-            
-            Serial.print("richtung 1: ");
-            Serial.println(buffer[16]);
-            
-            taskarray[1][4] = tritarray[buffer[16]];
-            
-            // speed
-            taskarray[1][12] = taskarray[1][0];
-            taskarray[1][13] = taskarray[1][1];
-            taskarray[1][14] = taskarray[1][2];
-            taskarray[1][15] = taskarray[1][3];
-            taskarray[1][16] = taskarray[1][4];
-            Serial.print("speed 1: ");
-            Serial.println(buffer[17]);
-            uint8_t speed = buffer[17];
-            for (uint8_t i=0;i<4;i++)
-            {
-               Serial.print(" i: "); Serial.print(i);
-               Serial.print(" data: ");Serial.print(speed & (1<<i));
-               Serial.print("\n");
-               if (speed & (1<<i))
-               {
-                  Serial.print("HI");
-                  speedarray[i] = HI; 
-                  commandarray0[5+i] = HI;
-                  taskarray[1][5+i] = HI;
-               }
-               else
-               {
-                  Serial.print("LO");
-                  speedarray[i] = LO; 
-                  commandarray0[5+i] = LO;
-                  taskarray[1][5+i] = LO;
-               }
-               Serial.print("\n");
-            }
-            taskarray[1][17] = taskarray[1][5];
-            taskarray[1][18] = taskarray[1][6];
-            taskarray[1][19] = taskarray[1][7];
-            taskarray[1][20] = taskarray[1][8];
-            
-         }break;
-  
-         case 0xB1: // speed 1
-         case 0xC1: // richtung 1
-         {
-            //Serial.print("usbtaskask 0xB0");
-            //     taskarray[1][4] = tritarray[(buffer[16] & 0x01)]; // Licht, bit 0
-            
-            
-            uint8_t speed_raw = buffer[17]; // 0: halt 1: richtung 2-5: speed
-            uint8_t speed_red = 0;
-            Serial.print("speed_raw 1: ");
-            Serial.println(speed_raw);
-            
-            if (speed_raw < 2) // stillstand oder Richtungswachsel
-            {
-               for (uint8_t i=0;i<4;i++)
-               {
-                 // Serial.println("speed_raw 1: HALT");
-                  //Serial.println(speed_raw);
-                  
-                  taskarray[1][5+i] = LO;
-               }
-               if (speed_raw == 1)
-               {
-                //  Serial.println("speed_raw 1: WENDEN");
-                  taskarray[1][5] = HI; // richtungswechsel fuer speed = 1
-               }
-            }
-            else 
-            {
-               speed = speed_raw;
-               
-               Serial.print("speed 1: ");
-               Serial.println(speed);
-               for (uint8_t i=0;i<4;i++)
-               {
-                //  Serial.print(" i: "); Serial.print(i);
-                 // Serial.print(" data: ");Serial.print(speed & (1<<i));
-                //  Serial.print("\n");
-                  if (speed & (1<<i))
-                  {
-                    // Serial.print("HI");
-                     speedarray[i] = HI; 
-                     taskarray[1][5+i] = HI;
-                  }
-                  else
-                  {
-                    // Serial.print("LO");
-                     speedarray[i] = LO; 
+                     commandarray0[5+i] = LO;
                      taskarray[1][5+i] = LO;
                   }
                   Serial.print("\n");
                }
-            }
-            /*
-            for (int i=5; i<9; i++) 
+               
+               taskarray[1][17] = taskarray[1][5];
+               taskarray[1][18] = taskarray[1][6];
+               taskarray[1][19] = taskarray[1][7];
+               taskarray[1][20] = taskarray[1][8];
+               
+            }break;
+     
+            case 0xB1: // speed 1
             {
-               if (taskarray[1][i] == 0xFEFE)
+               taskarray[1][0] = tritarray[buffer[8]];
+               taskarray[1][1] = tritarray[buffer[9]];
+               taskarray[1][2] = tritarray[buffer[10]];
+               taskarray[1][3] = tritarray[buffer[11]];
+               
+               eepromadressearray[1][0] = tritarray[buffer[8]];
+               eepromadressearray[1][1] = tritarray[buffer[9]];
+               eepromadressearray[1][2] = tritarray[buffer[10]];
+               eepromadressearray[1][3] = tritarray[buffer[11]];
+               
+               
+               // repetition
+               taskarray[1][12] = taskarray[1][0] ;
+               taskarray[1][13] = taskarray[1][1] ;
+               taskarray[1][14] = taskarray[1][2] ;
+               taskarray[1][15] = taskarray[1][3] ;
+               //Serial.print("usbtaskask 0xB0");
+                  //     taskarray[0][4] = tritarray[(buffer[16] & 0x01)]; // Licht, bit 0
+                  
+                  uint8_t speed_raw = buffer[17]; // 0: halt 1: richtung 2-5: speed
+                  uint8_t speed_red = 0;
+                  Serial.print("speed_raw 0: ");
+                  Serial.println(speed_raw);
+                  lcd.setCursor(0,0);
+                  //lcd.print("Lok0");
+                  if (speed_raw < 10)
+                  {
+                     lcd.print(" ");
+                  }
+                  else
+                  {
+                     // lcd.print("speed ");
+                  }
+                  lcd.print(speed_raw);
+                  
+                  
+                  if (speed_raw < 2) // stillstand oder Richtungswachsel
+                  {
+                     
+                     for (uint8_t i=0;i<4;i++)
+                     {
+                        Serial.println("speed_raw 1: HALT");
+                        //Serial.println(speed_raw);
+                        
+                        taskarray[1][5+i] = LO;
+                     }
+                     if (speed_raw == 1)
+                     {
+                        Serial.println("speed_raw 0: WENDEN");
+                        taskarray[1][5] = HI; // richtungswechsel fuer speed = 1
+                        
+                        
+                     }
+                  }
+                  else 
+                  {
+                     speed = speed_raw;
+                     
+                     Serial.print("speed 0: ");
+                     Serial.println(speed);
+                     for (uint8_t i=0;i<4;i++)
+                     {
+                        Serial.print(" i: "); Serial.print(i);
+                        Serial.print(" data: ");Serial.print(speed & (1<<i));
+                        Serial.print("\n");
+                        if (speed & (1<<i))
+                        {
+                           Serial.print("HI");
+                           speedarray[i] = HI; 
+                           //taskarray[0][8-i] = HI;
+                           taskarray[1][5+i] = HI;
+                        }
+                        else
+                        {
+                           Serial.print("LO");
+                           speedarray[i] = LO; 
+                           //taskarray[0][8-i] = LO;
+                           taskarray[1][5+i] = LO;
+                        }
+                        Serial.print("\n");
+                     }
+                  }
+                  
+                  for (int i=5; i<9; i++) 
+                  {
+                     if (taskarray[1][i] == 0xFEFE)
+                     {
+                        Serial.print("1");
+                     }
+                     else 
+                     {
+                        Serial.print("0");
+                     }
+                     //Serial.print(taskarray[1][i]);
+                     
+                  }
+                  Serial.print("\n");
+                  
+                  // rep speed
+                  taskarray[1][17] = taskarray[1][5];
+                  taskarray[1][18] = taskarray[1][6];
+                  taskarray[1][19] = taskarray[1][7];
+                  taskarray[1][20] = taskarray[1][8];
+                  
+
+               
+            }break;
+               
+               
+            case 0xC1: // richtung 1
+            {
+               //Serial.print("usbtaskask 0xB0");
+               //     taskarray[1][4] = tritarray[(buffer[16] & 0x01)]; // Licht, bit 0
+               
+               
+               uint8_t speed_raw = buffer[17]; // 0: halt 1: richtung 2-5: speed
+               uint8_t speed_red = 0;
+               Serial.print("speed_raw 1: ");
+               Serial.println(speed_raw);
+               
+               if (speed_raw < 2) // stillstand oder Richtungswachsel
                {
-                  Serial.print("1");
+                  for (uint8_t i=0;i<4;i++)
+                  {
+                    // Serial.println("speed_raw 1: HALT");
+                     //Serial.println(speed_raw);
+                     
+                     taskarray[1][5+i] = LO;
+                  }
+                  if (speed_raw == 1)
+                  {
+                   //  Serial.println("speed_raw 1: WENDEN");
+                     taskarray[1][5] = HI; // richtungswechsel fuer speed = 1
+                  }
                }
                else 
                {
-                  Serial.print("0");
+                  speed = speed_raw;
+                  
+                  Serial.print("speed 1: ");
+                  Serial.println(speed);
+                  for (uint8_t i=0;i<4;i++)
+                  {
+                   //  Serial.print(" i: "); Serial.print(i);
+                    // Serial.print(" data: ");Serial.print(speed & (1<<i));
+                   //  Serial.print("\n");
+                     if (speed & (1<<i))
+                     {
+                       // Serial.print("HI");
+                        speedarray[i] = HI; 
+                        taskarray[1][5+i] = HI;
+                     }
+                     else
+                     {
+                       // Serial.print("LO");
+                        speedarray[i] = LO; 
+                        taskarray[1][5+i] = LO;
+                     }
+                     Serial.print("\n");
+                  }
                }
-               //Serial.print(taskarray[0][i]);
+               /*
+               for (int i=5; i<9; i++) 
+               {
+                  if (taskarray[1][i] == 0xFEFE)
+                  {
+                     Serial.print("1");
+                  }
+                  else 
+                  {
+                     Serial.print("0");
+                  }
+                  //Serial.print(taskarray[0][i]);
+                  
+               }
+               Serial.print("\n");
+               */
                
-            }
-            Serial.print("\n");
-            */
-            
-            taskarray[1][17] = taskarray[1][5];
-            taskarray[1][18] = taskarray[1][6];
-            taskarray[1][19] = taskarray[1][7];
-            taskarray[1][20] = taskarray[1][8];
-            
-            // Address
-            taskarray[1][0] = tritarray[buffer[8]];
-            taskarray[1][1] = tritarray[buffer[9]];
-            taskarray[1][2] = tritarray[buffer[10]];
-            taskarray[1][3] = tritarray[buffer[11]];
-            
-            
-            // repetition
-            taskarray[1][12] = taskarray[1][0] ;
-            taskarray[1][13] = taskarray[1][1] ;
-            taskarray[1][14] = taskarray[1][2] ;
-            taskarray[1][15] = taskarray[1][3] ;
-            
-           /*
-            // richtung
-            // speed auf 0 setzen
-            for (uint8_t i=1;i<4;i++) 
+               taskarray[1][17] = taskarray[1][5];
+               taskarray[1][18] = taskarray[1][6];
+               taskarray[1][19] = taskarray[1][7];
+               taskarray[1][20] = taskarray[1][8];
+               
+               // Address
+               taskarray[1][0] = tritarray[buffer[8]];
+               taskarray[1][1] = tritarray[buffer[9]];
+               taskarray[1][2] = tritarray[buffer[10]];
+               taskarray[1][3] = tritarray[buffer[11]];
+               
+               
+               // repetition
+               taskarray[1][12] = taskarray[1][0] ;
+               taskarray[1][13] = taskarray[1][1] ;
+               taskarray[1][14] = taskarray[1][2] ;
+               taskarray[1][15] = taskarray[1][3] ;
+               
+              /*
+               // richtung
+               // speed auf 0 setzen
+               for (uint8_t i=1;i<4;i++) 
+               {
+                  
+                  taskarray[1][5+i] = LO;
+               }
+               
+               if (buffer[17] == 1)// Richtung Toggeln
+               {
+                  taskarray[1][5] = HI; 
+               }
+               
+               else if (buffer[17] == 0)
+               {
+                  taskarray[1][5] = LO;  
+               }
+
+   */
+               // funktion
+               if (buffer[16] & 0x01)
+               {
+                  //Serial.println("D0 Funktion HI");
+                  taskarray[1][4] = HI;
+                  taskarray[1][16] = HI;
+               }
+               else
+               {
+                  //Serial.println("D0 Funktion LO");
+                  taskarray[1][4] = LO;
+                  taskarray[1][16] = LO;
+               }
+
+               
+               
+            }break;
+
+            case 0xD1:
             {
                
-               taskarray[1][5+i] = LO;
-            }
-            
-            if (buffer[17] == 1)// Richtung Toggeln
-            {
-               taskarray[1][5] = HI; 
-            }
-            
-            else if (buffer[17] == 0)
-            {
-               taskarray[1][5] = LO;  
-            }
+               Serial.print("D1 Funktion b16: ");
+               Serial.println(buffer[16]);
+               if (buffer[16] & 0x01)
+               {
+                  Serial.println("D0 Funktion HI");
+                  taskarray[1][4] = HI;
+                  taskarray[1][16] = HI;
+               }
+               else
+               {
+                  Serial.println("D0 Funktion LO");
+                  taskarray[1][4] = LO;
+                  taskarray[1][16] = LO;
+               }
+               
+               
+            }break;
 
-*/
-            // funktion
-            if (buffer[16] & 0x01)
-            {
-               //Serial.println("D0 Funktion HI");
-               taskarray[1][4] = HI;
-               taskarray[1][16] = HI;
-            }
-            else
-            {
-               //Serial.println("D0 Funktion LO");
-               taskarray[1][4] = LO;
-               taskarray[1][16] = LO;
-            }
-
-            
-            
-         }break;
-
-         case 0xD1:
-         {
-            
-            Serial.print("D1 Funktion b16: ");
-            Serial.println(buffer[16]);
-            if (buffer[16] & 0x01)
-            {
-               Serial.println("D0 Funktion HI");
-               taskarray[1][4] = HI;
-               taskarray[1][16] = HI;
-            }
-            else
-            {
-               Serial.println("D0 Funktion LO");
-               taskarray[1][4] = LO;
-               taskarray[1][16] = LO;
-            }
-            
-            
-         }break;
-
-           
-       
-      }// switch
-      Serial.println("USB END");
-   } // n>0
+              
+          
+         }// switch
+         Serial.println("USB END");
+      } // n>0
    /*
    else 
     {
