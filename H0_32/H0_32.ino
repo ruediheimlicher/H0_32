@@ -58,6 +58,7 @@ ADC *adc = new ADC(); // adc object
 #define EMITTER_PIN A9
 
 #define ANZLOKS       3
+
 #define POT_0_PIN    A0
 #define POT_1_PIN    A1
 #define POT_2_PIN    A2
@@ -124,6 +125,11 @@ float sinpos = 0;
 #define SPI_MOSI  11
 #define SPI_CS 10
 
+
+
+#define ANZLOKALLOKS       1 // anz loks bei lokalem Betrieb
+
+
 gpio_MCP23S17 mcp0(10,0x20);//instance 0 (address A0,A1,A2 tied to 0)
 uint8_t regA = 0x0;
 uint8_t regB = 0;
@@ -134,14 +140,20 @@ uint8_t tastenstatusA = 0;
 
 volatile uint8_t tastenadresseA = 0;
 volatile uint8_t tastenadresseB = 0;
+
+volatile uint8_t lokaladressearray[ANZLOKALLOKS] = {};
+
 uint8_t tastenstatusB = 0;
 
 uint8_t potarray[ANZLOKS] = {};
-uint8_t localpotarray[ANZLOKS] = {};
+uint8_t localpotarray[ANZLOKALLOKS] = {};
 
-#define ANZLOKALLOKS       1 // anz loks bei lokalem Betrieb
+
 uint8_t lokalstatus = 0;
-#define LOKALRICHTUNGBIT 1
+#define LOKALRICHTUNGBIT0 0
+#define LOKALRICHTUNGBIT1 1
+#define LOKALRICHTUNGBIT2 2
+#define LOKALRICHTUNGBIT3 3
 elapsedMillis sincelocalrichtung;
 
 uint8_t potpinarray[8] = {POT_0_PIN,POT_1_PIN,POT_2_PIN,POT_3_PIN,POT_4_PIN,POT_5_PIN,POT_6_PIN,POT_7_PIN};
@@ -725,7 +737,7 @@ void loop()
       sincemcp = 0;
       tastencodeA = 0xFF - mcp0.gpioReadPortA(); // active taste ist LO > invertieren
       tastenadresseA = (tastencodeA & 0xF0) >> 4;
-      
+      lokaladressearray[0] = (tastencodeA & 0xF0) >> 4;
       /*
       for (uint8_t i=0;i<4;i++)
       {
@@ -741,6 +753,7 @@ void loop()
       */
       tastencodeB = 0xFF - mcp0.gpioReadPortB(); // active taste ist LO > invertieren
       tastenadresseB = (tastencodeB & 0xF0) >> 4;
+      lokaladressearray[1] = (tastencodeB & 0xF0) >> 4;
 /*
       for (uint8_t i=0;i<4;i++)
        {
@@ -1843,21 +1856,24 @@ void loop()
          
           for (uint8_t i=0;i<4;i++)
           {
-             if (tastenadresseA & (1<<i))
+            // if (tastenadresseA & (1<<i))
+            if (lokaladressearray[loknummer] & (1<<i))
              {
-                taskarray[0][i] = tritarray[0];
+                taskarray[loknummer][i] = tritarray[0];
              }
              else
              {
-                taskarray[0][i] = tritarray[2];
+                taskarray[loknummer][i] = tritarray[2];
              }
+             
+             
           }
           
          // repetition address
-          taskarray[0][12] = taskarray[0][0] ;
-          taskarray[0][13] = taskarray[0][1] ;
-          taskarray[0][14] = taskarray[0][2] ;
-          taskarray[0][15] = taskarray[0][3] ;
+          taskarray[loknummer][12] = taskarray[loknummer][0] ;
+          taskarray[loknummer][13] = taskarray[loknummer][1] ;
+          taskarray[loknummer][14] = taskarray[loknummer][2] ;
+          taskarray[loknummer][15] = taskarray[loknummer][3] ;
 
          // speed
          
@@ -1895,14 +1911,14 @@ void loop()
                //Serial.println("speed_raw 0: HALT");
                //Serial.println(speed_raw);
                
-               taskarray[0][5+i] = LO;
+               taskarray[loknummer][5+i] = LO;
             }
             
             // tritt nicht auf, 1 wird uebersprungen
             if (speed_raw == 1)
             {
                Serial.println("speed_raw 0: WENDEN");
-               taskarray[0][5] = HI; // richtungswechsel fuer speed = 1
+               taskarray[loknummer][5] = HI; // richtungswechsel fuer speed = 1
                
                
             }
@@ -1922,13 +1938,13 @@ void loop()
                {
 //                 Serial.print("HI");
                   speedarray[i] = HI; 
-                  taskarray[0][5+i] = HI;
+                  taskarray[loknummer][5+i] = HI;
                }
                else
                {
     //              Serial.print("LO");
                   speedarray[i] = LO; 
-                  taskarray[0][5+i] = LO;
+                  taskarray[loknummer][5+i] = LO;
                }
     //           Serial.print("\n");
             }
@@ -1936,7 +1952,7 @@ void loop()
       /*   
          for (int i=5; i<9; i++) 
          {
-            if (taskarray[0][i] == 0xFEFE)
+            if (taskarray[loknummer][i] == 0xFEFE)
             {
                Serial.print("1");
             }
@@ -1944,22 +1960,22 @@ void loop()
             {
                Serial.print("0");
             }
-            //Serial.print(taskarray[0][i]);
+            //Serial.print(taskarray[loknummer][i]);
             
          }
          Serial.print("\n");
          */
          // rep speed
-         taskarray[0][17] = taskarray[0][5];
-         taskarray[0][18] = taskarray[0][6];
-         taskarray[0][19] = taskarray[0][7];
-         taskarray[0][20] = taskarray[0][8];
+         taskarray[loknummer][17] = taskarray[loknummer][5];
+         taskarray[loknummer][18] = taskarray[loknummer][6];
+         taskarray[loknummer][19] = taskarray[loknummer][7];
+         taskarray[loknummer][20] = taskarray[loknummer][8];
          
    
          // Richtung
          /*
           uint8_t lokalstatus = 0;
-          #define LOKALRICHTUNGBIT 1
+          #define LOKALRICHTUNGBIT0 1
           elapsedMillis sincelocalrichtung;
 
           */
@@ -1970,44 +1986,45 @@ void loop()
                {
                  // Serial.println("speed_raw 0: HALT");
                   
-                  taskarray[0][5+i] = LO;
+                  taskarray[loknummer][5+i] = LO;
                }
 
-            taskarray[0][5] = HI; 
+            taskarray[loknummer][5] = HI; 
  //             lcd.setCursor(6,0);
  //             lcd.print("W0");
-              lokalstatus |= (1<<LOKALRICHTUNGBIT);
+              lokalstatus |= (1<<LOKALRICHTUNGBIT0);
               sincelocalrichtung = 0;
               
            }
-           else if ((lokalstatus & (1<<LOKALRICHTUNGBIT)) && (sincelocalrichtung > 1000)) // nach 0.5s zuruecksetzen
+           else if ((lokalstatus & (1<<LOKALRICHTUNGBIT0)) && (sincelocalrichtung > 1000)) // nach 0.5s zuruecksetzen
            {
+              lokalstatus &= ~(1<<LOKALRICHTUNGBIT0);
               sincelocalrichtung = 0;
-              taskarray[0][5] = LO;
+              taskarray[loknummer][5] = LO;
    //           lcd.setCursor(6,0);
    //           lcd.print("W1");
               
               
            }
          // repetition speed 0
-          taskarray[0][17] = taskarray[0][5]; // auch richtung
-          taskarray[0][18] = taskarray[0][6];
-          taskarray[0][19] = taskarray[0][7];
-          taskarray[0][20] = taskarray[0][8];
+          taskarray[loknummer][17] = taskarray[loknummer][5]; // auch richtung
+          taskarray[loknummer][18] = taskarray[loknummer][6];
+          taskarray[loknummer][19] = taskarray[loknummer][7];
+          taskarray[loknummer][20] = taskarray[loknummer][8];
 
          // Funktion
          if (tastencodeA & 0x01)
          {
-            taskarray[0][4] = HI; 
-            taskarray[0][16] = HI;
+            taskarray[loknummer][4] = HI; 
+            taskarray[loknummer][16] = HI;
 //            lcd.setCursor(12,1);
 //            lcd.print("ON ");
             
          }
          else
          {
-            taskarray[0][4] = LO;
-            taskarray[0][16] = LO;
+            taskarray[loknummer][4] = LO;
+            taskarray[loknummer][16] = LO;
  //           lcd.setCursor(12,1);
  //           lcd.print("OFF");
             
