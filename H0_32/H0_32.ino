@@ -384,7 +384,12 @@ void setup()
    mcp0.gpioPort(0xCC33);
 
    
+   EEPROM.begin();
    
+   
+   
+   
+   delay(100);
    usbtask = 0;
    adressearray[0] = LO;
    adressearray[1] = HI;
@@ -555,9 +560,13 @@ void setup()
     lcd.print("H0-32");
     _delay_ms(200);
     lcd.clear();  
-
-    EEPROM.begin();
-   
+   uint8_t eepromtimerintervall = EEPROM.read(0xA0);
+   if (eepromtimerintervall < 0xFF) // schon ein Wert gespeichert
+   {
+      timerintervall = eepromtimerintervall;
+   }
+    lcd.setCursor(0,0);
+   lcd.print(timerintervall);
     uint8_t eeprompos = 0x00;
     uint8_t eepromadressbyte = 0;
     /*
@@ -1850,30 +1859,6 @@ void loop()
           taskarray[0][14] = taskarray[0][2] ;
           taskarray[0][15] = taskarray[0][3] ;
 
-          
-         /*
-          Serial.print(" local adress: ");
-          Serial.print(eepromadressearray[loknummer][0],HEX);
-          Serial.print(" ");
-          Serial.print(eepromadressearray[loknummer][1],HEX);
-          Serial.print(" ");
-          Serial.print(eepromadressearray[loknummer][2],HEX);
-          Serial.print(" ");
-          Serial.print(eepromadressearray[loknummer][3],HEX);
-          Serial.print("\n");
-          */
-         
-         /*
-         taskarray[0][0] = eepromadressearray[loknummer][0];
-         taskarray[0][1] = eepromadressearray[loknummer][1];
-         taskarray[0][2] = eepromadressearray[loknummer][2];
-         taskarray[0][3] = eepromadressearray[loknummer][3];
-         // repetition address
-         taskarray[0][12] = taskarray[0][0] ;
-         taskarray[0][13] = taskarray[0][1] ;
-         taskarray[0][14] = taskarray[0][2] ;
-         taskarray[0][15] = taskarray[0][3] ;
-         */
          // speed
          
          uint8_t speed_raw = localpotarray[loknummer] >> 4; // 0: halt 1: richtung 2-5: speed
