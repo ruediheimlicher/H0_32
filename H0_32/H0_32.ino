@@ -33,6 +33,10 @@
 
 #include <EEPROM.h>
 
+// Load Wi-Fi library
+#include <ESP8266WiFi.h>
+
+
 ADC *adc = new ADC(); // adc object
 // Set parameters
 
@@ -54,6 +58,7 @@ ADC *adc = new ADC(); // adc object
 
 #define TAKT_PIN 0
 #define OUT_PIN 1
+#define OUT_PIN_INV 2
 
 #define EMITTER_PIN A9
 
@@ -261,6 +266,7 @@ void pakettimerfunction()
     OPEN   0x02FE  // 0000001011111110
     HI     0xFEFE  // 1111111011111110
     */
+   
    digitalWriteFast(TAKT_PIN, !digitalReadFast(TAKT_PIN)); // toggle
    
    aktualcommand = taskarray[paketpos][bytepos]; // zu schickendes command
@@ -277,10 +283,12 @@ void pakettimerfunction()
    if (aktualcommand & (1<<commandpos))
    {
       digitalWriteFast(OUT_PIN,HIGH);
+      digitalWriteFast(OUT_PIN_INV,LOW);
    }
    else
    {
       digitalWriteFast(OUT_PIN,LOW);
+      digitalWriteFast(OUT_PIN_INV,HIGH);
    }
    if (commandpos < 15)
    {
@@ -291,6 +299,8 @@ void pakettimerfunction()
       commandpos = 0;
       digitalWriteFast(LOKSYNC,HIGH);
       digitalWriteFast(OUT_PIN,LOW);
+      digitalWriteFast(OUT_PIN_INV,HIGH);
+      
       bytepos++;
       if (bytepos >= 20 + pause) // Paket fertig
       {
@@ -322,7 +332,7 @@ void ADC_init(void)
    adc->adc0->setResolution(8); // set bits of resolution
    adc->adc0->setConversionSpeed(ADC_CONVERSION_SPEED::LOW_SPEED);
    adc->adc0->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
-   adc->setReference(ADC_REFERENCE::REF_3V3, ADC_0);
+   adc->adc0->setReference(ADC_REFERENCE::REF_3V3);
 //   adc->enableInterrupts(ADC_0);
    
    
@@ -368,6 +378,10 @@ void setup()
 
    pinMode(OUT_PIN, OUTPUT);
    digitalWriteFast(OUT_PIN, LOW); // LO, OFF 
+
+   // Signal Invertiert
+   pinMode(OUT_PIN_INV, OUTPUT);
+    digitalWriteFast(OUT_PIN_INV, HIGH); // HI, OFF 
 
    pinMode(LOKSYNC, OUTPUT);
    digitalWriteFast(LOKSYNC, HIGH); 
@@ -859,7 +873,7 @@ void loop()
       }
       lcd.print(pot0);
    }
-   if (sinceblink > 1000)
+   if (sinceblink > 500)
    {
       sinceblink = 0;
       //pinMode(LOOPLED, OUTPUT);

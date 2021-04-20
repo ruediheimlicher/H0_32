@@ -61,14 +61,14 @@ void init_analog(void)
 	target_val[1]=2000; // initialize to 5000, U
    analogWriteFrequency(4, 375000);
    
-   adc->setAveraging(2); // set number of averages 
-   adc->setResolution(12); // set bits of resolution
-   adc->setConversionSpeed(ADC_CONVERSION_SPEED::LOW_SPEED);
-   adc->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
-   adc->setReference(ADC_REFERENCE::REF_3V3, ADC_0);
+   adc->adc0->setAveraging(2); // set number of averages 
+   adc->adc0->setResolution(12); // set bits of resolution
+   adc->adc0->setConversionSpeed(ADC_CONVERSION_SPEED::LOW_SPEED);
+   adc->adc0->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
+   adc->adc0->setReference(ADC_REFERENCE::REF_3V3);
    
    
-   adc->enableInterrupts(ADC_0);
+   adc->adc0->enableInterrupts(ADC_0);
     
     
    adc->startSynchronizedContinuous(ADC_U, ADC_I); // 

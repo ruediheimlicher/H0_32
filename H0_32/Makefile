@@ -42,7 +42,7 @@
 #	TouchScreen USBHost_t36 UTFT VirtualWire WS2812Serial Wire XBee 
 #	XPT2046_Touchscreen i2c_t3 ks0108 openGLCD ssd1351 x10 
 #
-APP_LIBS_LIST = ADC SPI LiquidCrystal_I2C  i2c_t3 TeensyThreads EEPROM
+APP_LIBS_LIST = ADC SPI LiquidCrystal_I2C  i2c_t3 TeensyThreads EEPROM ESP8266WiFi
 
 # List user's libraries here
 # !!! Help: http://bit.ly/2AEscDx
