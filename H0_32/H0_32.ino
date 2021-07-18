@@ -34,7 +34,7 @@
 #include <EEPROM.h>
 
 // Load Wi-Fi library
-#include <ESP8266WiFi.h>
+//#include <ESP8266WiFi.h>
 
 
 ADC *adc = new ADC(); // adc object
