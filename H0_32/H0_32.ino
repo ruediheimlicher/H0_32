@@ -54,13 +54,13 @@ ADC *adc = new ADC(); // adc object
 #define MAXWERT  4096 // Nullpunkt
 
 
-#define LOOPLED A8 // A8
+#define LOOPLED 0 // 0
 
 #define TAKT_PIN 0
 #define OUT_PIN 1
 #define OUT_PIN_INV 2
 
-#define EMITTER_PIN A9
+#define CURR_PIN A4
 
 #define ANZLOKS       3
 
@@ -68,10 +68,6 @@ ADC *adc = new ADC(); // adc object
 #define POT_1_PIN    A1
 #define POT_2_PIN    A2
 #define POT_3_PIN    A3
-#define POT_4_PIN    A4
-#define POT_5_PIN    A5
-#define POT_6_PIN    A6
-#define POT_7_PIN    A7
 
 #define SOURCECONTROL        6 // Eingang, HI wenn local
 #define LOKSYNC        7
@@ -84,6 +80,7 @@ ADC *adc = new ADC(); // adc object
 volatile uint8_t loopstatus = 0;
 #define FIRSTRUN  1
 
+#define SERIAL_OK 2
 
 byte buffer[64];
 
@@ -111,7 +108,7 @@ volatile uint8_t loknummer = 0;
 
 volatile uint8_t speed = 0;
 
-
+uint8_t minanzeige = 0xFF;
 //let GET_U:UInt8 = 0xA2
 //let GET_I:UInt8 = 0xB2
 
@@ -161,7 +158,7 @@ uint8_t lokalstatus = 0;
 #define LOKALRICHTUNGBIT3 3
 elapsedMillis sincelocalrichtung;
 
-uint8_t potpinarray[8] = {POT_0_PIN,POT_1_PIN,POT_2_PIN,POT_3_PIN,POT_4_PIN,POT_5_PIN,POT_6_PIN,POT_7_PIN};
+uint8_t potpinarray[8] = {POT_0_PIN,POT_1_PIN,POT_2_PIN,POT_3_PIN};
 
 char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EMPTY"};
 
@@ -328,24 +325,32 @@ void ADC_init(void)
 {
    emitter=0; // 
    
-   adc->adc0->setAveraging(2); // set number of averages 
+   adc->adc0->setAveraging(4); // set number of averages 
    adc->adc0->setResolution(8); // set bits of resolution
    adc->adc0->setConversionSpeed(ADC_CONVERSION_SPEED::LOW_SPEED);
    adc->adc0->setSamplingSpeed(ADC_SAMPLING_SPEED::MED_SPEED);
    adc->adc0->setReference(ADC_REFERENCE::REF_3V3);
-//   adc->enableInterrupts(ADC_0);
+  // adc->adc0->enableInterrupts(ADC_0);
    
-   
+}  
 //   delay(100);
-   
-   
+
+void LCD_init()
+{   
+   pinMode(LCD_RSDS_PIN, OUTPUT);
+   pinMode(LCD_ENABLE_PIN, OUTPUT);
+   pinMode(LCD_CLOCK_PIN, OUTPUT);
+   digitalWrite(LCD_RSDS_PIN,1);
+   digitalWrite(LCD_ENABLE_PIN,1);
+   digitalWrite(LCD_CLOCK_PIN,1);
+
 }
 
 
 void stromtimerfunction()
 {
-   emitter = adc->analogRead(EMITTER_PIN);
-   emitterarray[emittermittelcounter & 0x03] = emitter;
+   emitter = 2*adc->analogRead(CURR_PIN);
+   emitterarray[emittermittelcounter & 0x07] = emitter;
    emittermittelcounter++;
    
 }
@@ -363,7 +368,7 @@ void setup()
    paketTimer.begin(pakettimerfunction,timerintervall);
    paketTimer.priority(0);
    
- //  stromTimer.begin(stromtimerfunction, 1000);
+   stromTimer.begin(stromtimerfunction, 5000);
    
    pinMode(LOOPLED, OUTPUT);
    
@@ -391,7 +396,7 @@ void setup()
    pinMode(OSZI_PULS_B, OUTPUT);
    digitalWriteFast(OSZI_PULS_B, HIGH); 
    
-    pinMode(SOURCECONTROL, INPUT);
+   pinMode(SOURCECONTROL, INPUT);
    
    mcp0.begin();
    /*
@@ -410,10 +415,13 @@ void setup()
    mcp0.gpioPort(0xCC33);
 
    
+   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+
    EEPROM.begin();
-   
-   
-   
+    
+   LCD_init();
    
    delay(100);
    usbtask = 0;
@@ -575,24 +583,45 @@ void setup()
    pinMode(POT_0_PIN, INPUT);
    pinMode(POT_1_PIN, INPUT);
    pinMode(POT_2_PIN, INPUT);
-   pinMode(EMITTER_PIN, INPUT);
+   pinMode(CURR_PIN, INPUT);
    
    ADC_init();
    delay(100);
    Serial.print("setup: ");
-   lcd.init();
-    lcd.backlight();
-    lcd.setCursor(0,0);
-    lcd.print("H0-32");
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.init();
+    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.backlight();
+    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,0);
+    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("H0-32");
     _delay_ms(200);
-    lcd.clear();  
+    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.clear();  
    uint8_t eepromtimerintervall = EEPROM.read(0xA0);
    if (eepromtimerintervall < 0xFF) // schon ein Wert gespeichert
    {
       timerintervall = eepromtimerintervall;
    }
-    lcd.setCursor(0,0);
-   lcd.print(timerintervall);
+    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,0);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(timerintervall);
     uint8_t eeprompos = 0x00;
     uint8_t eepromadressbyte = 0;
     /*
@@ -609,7 +638,10 @@ void setup()
     taskarray[0][3] = tritarray[buffer[11]];
 
    
-   lcd.setCursor(0,3);;
+   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,3);;
     
 /*
    delay(50);
@@ -619,7 +651,10 @@ void setup()
       Serial.print(eeprompos);
       Serial.print(" byte: ");
       Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
      delay(50);
      eeprompos++;
      eepromadressbyte = EEPROM.read(eeprompos);
@@ -628,7 +663,10 @@ void setup()
          Serial.print(eeprompos);
          Serial.print(" byte: ");
          Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
      delay(10);
      eeprompos++;
      eepromadressbyte = EEPROM.read(eeprompos);
@@ -637,7 +675,10 @@ void setup()
          Serial.print(eeprompos);
          Serial.print(" byte: ");
          Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
      delay(10);
      eeprompos++;
      eepromadressbyte = EEPROM.read(eeprompos);
@@ -646,7 +687,10 @@ void setup()
          Serial.print(eeprompos);
          Serial.print(" byte: ");
          Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
 
    // repetition address
      taskarray[0][12] = taskarray[0][0] ;
@@ -667,8 +711,14 @@ void setup()
        Serial.print(eeprompos);
        Serial.print(" byte: ");
        Serial.println(eepromadressbyte);
-    lcd.print(" ");
-   lcd.print(eepromadressbyte);
+    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
 
       delay(50);
       eeprompos++;
@@ -678,7 +728,10 @@ void setup()
           Serial.print(eeprompos);
           Serial.print(" byte: ");
           Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
       delay(10);
       eeprompos++;
       eepromadressbyte = EEPROM.read(eeprompos);
@@ -687,7 +740,10 @@ void setup()
           Serial.print(eeprompos);
           Serial.print(" byte: ");
           Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
       delay(10);
       eeprompos++;
       eepromadressbyte = EEPROM.read(eeprompos);
@@ -696,7 +752,10 @@ void setup()
           Serial.print(eeprompos);
           Serial.print(" byte: ");
           Serial.println(eepromadressbyte);
-lcd.print(eepromadressbyte);
+//   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
    
    delay(50);
    
@@ -707,8 +766,14 @@ lcd.print(eepromadressbyte);
         Serial.print(eeprompos);
         Serial.print(" byte: ");
         Serial.println(eepromadressbyte);
-    lcd.print(" ");
-   lcd.print(eepromadressbyte);
+    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
 
        delay(50);
        eeprompos++;
@@ -718,7 +783,10 @@ lcd.print(eepromadressbyte);
            Serial.print(eeprompos);
            Serial.print(" byte: ");
            Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
        delay(10);
        eeprompos++;
        eepromadressbyte = EEPROM.read(eeprompos);
@@ -727,7 +795,10 @@ lcd.print(eepromadressbyte);
            Serial.print(eeprompos);
            Serial.print(" byte: ");
            Serial.println(eepromadressbyte);
-   lcd.print(eepromadressbyte);
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
        delay(10);
        eeprompos++;
        eepromadressbyte = EEPROM.read(eeprompos);
@@ -737,9 +808,128 @@ lcd.print(eepromadressbyte);
            Serial.print(eeprompos);
            Serial.print(" byte: ");
            Serial.println(eepromadressbyte);
-lcd.print(eepromadressbyte);
+//   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(eepromadressbyte);
  */ 
    
+   byte smiley[8] = 
+   {
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000   };  
+     //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(0, smiley);
+   byte eins[8] = {
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b11111
+   };
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(1, eins);
+   byte zwei[8] = {
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b11111,
+      0b11111
+   };
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(2, zwei);
+   byte drei[8] = {
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b11111,
+      0b11111,
+      0b11111
+   };
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(3, drei);
+   byte vier[8] = {
+      0b00000,
+      0b00000,
+      0b00000,
+      0b00000,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111
+   };
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(4, vier);
+   byte fuenf[8] = {
+      0b00000,
+      0b00000,
+      0b00000,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111
+   };
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(5, fuenf);
+   byte sechs[8] = {
+      0b00000,
+      0b00000,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111
+   };
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(6, sechs);
+
+   byte sieben[8] = {
+      0b00000,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111,
+      0b11111
+   };
+   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.createChar(7, sieben);
+
+
+
 }
 
 // Add loop code
@@ -748,6 +938,14 @@ void loop()
 
    if (sincemcp > 10)
    {
+      if (Serial)
+      {
+         loopstatus |= (1<<SERIAL_OK);
+      }
+      else
+      {
+         loopstatus &= ~(1<<SERIAL_OK);
+      }
       sincemcp = 0;
       tastencodeA = 0xFF - mcp0.gpioReadPortA(); // active taste ist LO > invertieren
       tastenadresseA = (tastencodeA & 0xF0) >> 4;
@@ -793,52 +991,129 @@ void loop()
       }
       
    }
-   
+#pragma mark EMITTER 
    if (sinceemitter > 200)
    {
-   //   tastencodeB = mcp0.gpioReadPortB(); // active taste ist LO > invertieren
-  
-   //   lcd.setCursor(4,1);
-   //   lcd.print(tastenstatusA,BIN);
-      
       sinceemitter = 0;
-      emitter = adc->analogRead(EMITTER_PIN);
-  //    emitterarray[emittermittelcounter & 0x03] = emitter;
-  //    emittermittelcounter++;
-      //Serial.print(" data: \t");
-      for (uint8_t i=0;i<4;i++)
+ //     emitter = adc->analogRead(CURR_PIN);
+      
+ //     emitterarray[emittermittelcounter & 0x03] = emitter;
+ //     emittermittelcounter++;
+      Serial.print(" data: \t");
+      emittermittel = 0;
+      for (uint8_t i=0;i<8;i++)
       {
          
          //       Serial.print(emitterarray[i]);
          //       Serial.print("\t");
          emittermittel += emitterarray[i];
       }
+       
       //    Serial.print("\t");
-      emittermittel /= 4;
-//      Serial.print("emittermittel: ");
-//      Serial.print(emittermittel);
-//      Serial.print("\n");
-      /*
-      lcd.setCursor(6,0);
-      if (emitter < 1000)
+      emittermittel /= 8;
+      Serial.print("emittermittel: ");
+      Serial.print(emittermittel);
+     // Serial.print(byte(0));
+      
+     // Serial.print("\n");
+      
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(4,0);
+      if (emitter < 0xFF)
       {
-         lcd.print(emitter);
+ 
+         uint8_t anzeige = (emittermittel);
+         anzeige = anzeige ^ 0xFF;
+         if (anzeige < minanzeige)
+         {
+            minanzeige = anzeige;
+         }
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(anzeige - minanzeige);
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(emitter);
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(emittermittel);
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.write((uint8_t)((anzeige - minanzeige)/2));
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
       }
       else 
       {
-         lcd.print("   ");
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("         ");
       }
-       */
-      lcd.setCursor(0,2);
-      lcd.print("A ");
-      lcd.print(tastencodeA);
-      lcd.print(" B ");
-   //   lcd.setCursor(12,1);
-      lcd.print(tastencodeB);
-      lcd.print(" ");
-      lcd.print(tastenstatusA); // tastenstatusA |= tastencodeB;
+      ////   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(18,0);
+      uint8_t pos = (emittermittel)/10;
+     // //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.write((uint8_t)2);
       
-      //lcd.print("*");
+      
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,2);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("A ");
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(tastencodeA);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" B ");
+   //   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(tastencodeB);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(tastenstatusA); // tastenstatusA |= tastencodeB;
+      
+      ////   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("*");
       sendbuffer[10] = 0xAB;
       sendbuffer[12] = emitter & 0x00FF;
       sendbuffer[13] = (emitter & 0xFF00)>>8;
@@ -862,16 +1137,32 @@ void loop()
 
       
       uint16_t pot0 = readPot(A0);
-      lcd.setCursor(10,0);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,0);
       if (pot0 < 10)
       {
-         lcd.print("  ");
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("  ");
       }
       else if (pot0 < 100)
       {
-         lcd.print(" ");
+         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
       }
-      lcd.print(pot0);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,0);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(pot0);
    }
    if (sinceblink > 500)
    {
@@ -879,14 +1170,38 @@ void loop()
       //pinMode(LOOPLED, OUTPUT);
       digitalWriteFast(LOOPLED, !digitalReadFast(LOOPLED));
  
-      lcd.setCursor(0,1);
-      lcd.print("A ");
-      lcd.print(tastencodeA,HEX);
-       lcd.print(" ");
-      lcd.print(tastenadresseA,HEX);
-  //    lcd.print(" B ");
-      //   lcd.setCursor(12,1);
- //     lcd.print(tastenadresseB,HEX);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,1);
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("A ");
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(tastencodeA,HEX);
+       //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
+      //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(tastenadresseA,HEX);
+  //    //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" B ");
+      //   //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+ //     //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(tastenadresseB,HEX);
       
       
       
@@ -1124,17 +1439,32 @@ void loop()
             uint8_t speed_red = 0;
             //             Serial.print("speed_raw 0: ");
             //             Serial.println(speed_raw);
-            lcd.setCursor(0,0);
-            //lcd.print("Lok0");
+            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,0);
+            ////   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("Lok0");
             if (speed_raw < 10)
             {
-               lcd.print(" ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
             }
             else
             {
-               // lcd.print("speed ");
+               // //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("speed ");
             }
-            lcd.print(speed_raw);
+            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(speed_raw);
             
             
             if (speed_raw < 2) // stillstand oder Richtungswachsel
@@ -1236,8 +1566,14 @@ void loop()
             if (buffer[17] == 1)// Richtung Toggeln
             {
                taskarray[0][5] = HI; 
-               lcd.setCursor(15,0);
-               lcd.print("T");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(15,0);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("T");
                
                /*
                 for (uint8_t i=1;i<4;i++)
@@ -1252,8 +1588,14 @@ void loop()
             else if (buffer[17] == 0)
             {
                taskarray[0][5] = LO; 
-               lcd.setCursor(15,0);
-               lcd.print(" ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(15,0);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
                
             }
             
@@ -1300,8 +1642,14 @@ void loop()
                Serial.println("D0 Funktion HI");
                taskarray[0][4] = HI;
                taskarray[0][16] = HI;
-               lcd.setCursor(12,1);
-               lcd.print("ON ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("ON ");
                
                
             }
@@ -1310,8 +1658,14 @@ void loop()
                Serial.println("D0 Funktion LO");
                taskarray[0][4] = LO;
                taskarray[0][16] = LO;
-               lcd.setCursor(12,1);
-               lcd.print("OFF");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("OFF");
                
             }
             
@@ -1396,17 +1750,32 @@ void loop()
             uint8_t speed_red = 0;
             Serial.print("speed_raw 0: ");
             Serial.println(speed_raw);
-            lcd.setCursor(0,0);
-            //lcd.print("Lok0");
+            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,0);
+            ////   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("Lok0");
             if (speed_raw < 10)
             {
-               lcd.print(" ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
             }
             else
             {
-               // lcd.print("speed ");
+               // //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("speed ");
             }
-            lcd.print(speed_raw);
+            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(speed_raw);
             
             
             if (speed_raw < 2) // stillstand oder Richtungswachsel
@@ -1518,8 +1887,14 @@ void loop()
             if (buffer[17] == 1)// Richtung Toggeln
             {
                taskarray[1][5] = HI; 
-               lcd.setCursor(15,0);
-               lcd.print("T");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(15,0);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("T");
                
                /*
                 for (uint8_t i=1;i<4;i++)
@@ -1534,8 +1909,14 @@ void loop()
             else if (buffer[17] == 0)
             {
                taskarray[1][5] = LO; 
-               lcd.setCursor(15,0);
-               lcd.print(" ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(15,0);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
                
             }
             
@@ -1655,17 +2036,32 @@ void loop()
             uint8_t speed_red = 0;
             Serial.print("speed_raw 0: ");
             Serial.println(speed_raw);
-            lcd.setCursor(0,0);
-            //lcd.print("Lok0");
+            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,0);
+            ////   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("Lok0");
             if (speed_raw < 10)
             {
-               lcd.print(" ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
             }
             else
             {
-               // lcd.print("speed ");
+               // //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("speed ");
             }
-            lcd.print(speed_raw);
+            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(speed_raw);
             
             
             if (speed_raw < 2) // stillstand oder Richtungswachsel
@@ -1765,8 +2161,14 @@ void loop()
             if (buffer[17] == 1)// Richtung Toggeln
             {
                taskarray[2][5] = HI; 
-               lcd.setCursor(15,0);
-               lcd.print("T");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(15,0);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("T");
                
                /*
                 for (uint8_t i=1;i<4;i++)
@@ -1781,8 +2183,14 @@ void loop()
             else if (buffer[17] == 0)
             {
                taskarray[2][5] = LO; 
-               lcd.setCursor(15,0);
-               lcd.print(" ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(15,0);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
                
             }
             
@@ -1829,8 +2237,14 @@ void loop()
                Serial.println("D0 Funktion HI");
                taskarray[2][4] = HI;
                taskarray[2][16] = HI;
-               lcd.setCursor(12,1);
-               lcd.print("ON ");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("ON ");
                
                
             }
@@ -1839,8 +2253,14 @@ void loop()
                Serial.println("D0 Funktion LO");
                taskarray[2][4] = LO;
                taskarray[2][16] = LO;
-               lcd.setCursor(12,1);
-               lcd.print("OFF");
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+               //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("OFF");
                
             }
             
@@ -1904,17 +2324,32 @@ void loop()
          uint8_t speed_red = 0;
   //       Serial.print("local speed_raw 0: ");
   //       Serial.println(speed_raw);
-  //       lcd.setCursor(0,0);
-  //       lcd.print("Lok0");
+  //       //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(0,0);
+  //       //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("Lok0");
          if (speed_raw < 10)
          {
-  //          lcd.print(" ");
+  //          //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(" ");
          }
          else
          {
-            // lcd.print("speed ");
+            // //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("speed ");
          }
-//         lcd.print(speed_raw);
+//         //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print(speed_raw);
          
          
          if (speed_raw < 2) // stillstand oder Richtungswachsel
@@ -2004,8 +2439,14 @@ void loop()
                }
 
             taskarray[loknummer][5] = HI; 
- //             lcd.setCursor(6,0);
- //             lcd.print("W0");
+ //             //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(6,0);
+ //             //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("W0");
               lokalstatus |= (1<<LOKALRICHTUNGBIT0);
               sincelocalrichtung = 0;
               
@@ -2015,8 +2456,14 @@ void loop()
               lokalstatus &= ~(1<<LOKALRICHTUNGBIT0);
               sincelocalrichtung = 0;
               taskarray[loknummer][5] = LO;
-   //           lcd.setCursor(6,0);
-   //           lcd.print("W1");
+   //           //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(6,0);
+   //           //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("W1");
               
               
            }
@@ -2031,16 +2478,28 @@ void loop()
          {
             taskarray[loknummer][4] = HI; 
             taskarray[loknummer][16] = HI;
-//            lcd.setCursor(12,1);
-//            lcd.print("ON ");
+//            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+//            //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("ON ");
             
          }
          else
          {
             taskarray[loknummer][4] = LO;
             taskarray[loknummer][16] = LO;
- //           lcd.setCursor(12,1);
- //           lcd.print("OFF");
+ //           //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.setCursor(12,1);
+ //           //   lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
+   _delay_ms(100);
+   lcd_puts("Teensy");
+//lcd.print("OFF");
             
          }
       }
