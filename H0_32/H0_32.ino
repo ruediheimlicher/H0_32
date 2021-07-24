@@ -751,8 +751,8 @@ void setup()
            Serial.println(eepromadressbyte);
 //  lcd.print(eepromadressbyte);
  */ 
-   /*
-   byte smiley[8] = 
+   
+   byte null[8] = 
    {
       0b00000,
       0b00000,
@@ -762,6 +762,7 @@ void setup()
       0b00000,
       0b00000,
       0b00000   };  
+    lcd_setcustom(0,null);
      //  lcd.createChar(0, smiley);
    byte eins[8] = {
       0b00000,
@@ -774,6 +775,7 @@ void setup()
       0b11111
    };
    //  lcd.createChar(1, eins);
+   lcd_setcustom(1,eins);
    byte zwei[8] = {
       0b00000,
       0b00000,
@@ -785,6 +787,7 @@ void setup()
       0b11111
    };
    //  lcd.createChar(2, zwei);
+   lcd_setcustom(2,zwei);
    byte drei[8] = {
       0b00000,
       0b00000,
@@ -796,6 +799,7 @@ void setup()
       0b11111
    };
    //  lcd.createChar(3, drei);
+   lcd_setcustom(3,drei);
    byte vier[8] = {
       0b00000,
       0b00000,
@@ -807,6 +811,7 @@ void setup()
       0b11111
    };
    //  lcd.createChar(4, vier);
+   lcd_setcustom(4,vier);
    byte fuenf[8] = {
       0b00000,
       0b00000,
@@ -818,6 +823,7 @@ void setup()
       0b11111
    };
    //  lcd.createChar(5, fuenf);
+   lcd_setcustom(5,fuenf);
    byte sechs[8] = {
       0b00000,
       0b00000,
@@ -829,7 +835,7 @@ void setup()
       0b11111
    };
    //  lcd.createChar(6, sechs);
-
+   lcd_setcustom(6,sechs);
    byte sieben[8] = {
       0b00000,
       0b11111,
@@ -841,7 +847,7 @@ void setup()
       0b11111
    };
    //  lcd.createChar(7, sieben);
-*/
+   lcd_setcustom(7,sieben);
 
 
 }
@@ -943,6 +949,10 @@ void loop()
          lcd_putint(anzeige - minanzeige);
          lcd_putc(' ');
          lcd_putint(emittermittel);
+         lcd_putc(' ');
+         lcd_putc('*');
+         lcd_putc(3);
+         lcd_putc('*');
          //  lcd.print(anzeige - minanzeige);
          //  lcd.print(" ");
          //  lcd.print(emitter);
@@ -1018,6 +1028,11 @@ void loop()
       lcd_puts("A: ");
       lcd_puthex(tastencodeA);
       lcd_puthex(loopstatus);
+      lcd_putc(' ');
+      lcd_putc('*');
+      lcd_putc(3);
+      lcd_putc('*');
+
       //  lcd.setCursor(0,1);
       //  lcd.print("A ");
       //  lcd.print(tastencodeA,HEX);

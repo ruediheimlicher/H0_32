@@ -150,6 +150,20 @@ lcd_send_char(void)
    _delay_ms(DELTA);
 }
 
+void lcd_setcustom(uint8_t pos, uint8_t* msg)
+{
+   uint8_t i;
+   if (pos < 8)
+   {
+      lcd_load_byte(0x40 + 8*pos);
+      lcd_send_cmd();
+      for(i=0;i<8;i++)
+      {
+         lcd_putc(msg[i]);
+      }
+      
+   }
+}
 /*
  * Loads the byte into the shift register and then sends it to the LCD as a char
  * Parameters:

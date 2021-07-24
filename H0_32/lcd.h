@@ -133,6 +133,6 @@ void lcd_put_zeit(uint8_t minuten, uint8_t stunden);
 void lcd_put_wochentag(uint8_t wd);
 void lcd_put_temperatur(uint16_t temperatur);
 void lcd_put_tempAbMinus20(uint16_t temperatur);
-
+void lcd_setcustom(uint8_t pos, uint8_t* msg);
 
 #endif /* lcd_h */
