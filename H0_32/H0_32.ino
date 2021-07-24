@@ -78,6 +78,10 @@ ADC *adc = new ADC(); // adc object
 #define OSZI_PULS_B        9 
 
 volatile uint8_t loopstatus = 0;
+volatile uint8_t loopcounter = 0;
+volatile uint8_t sourcestatus = 0; // local/USB
+#define LOCAL  0
+#define USB 1
 #define FIRSTRUN  1
 
 #define SERIAL_OK 2
@@ -107,6 +111,8 @@ volatile uint16_t speedarray[5];
 volatile uint8_t loknummer = 0;
 
 volatile uint8_t speed = 0;
+
+
 
 uint8_t minanzeige = 0xFF;
 //let GET_U:UInt8 = 0xA2
@@ -205,7 +211,7 @@ uint16_t                   tritarray[] = {LO,OPEN,HI};
 
 int achse0_startwert=0;
 
-LiquidCrystal_I2C lcd(0x27,20,4); 
+//LiquidCrystal_I2C lcd(0x27,20,4); 
 
 void printHex8(uint8_t data) // prints 8-bit data in hex with leading zeroes
 {
@@ -855,7 +861,7 @@ void setup()
 // Add loop code
 void loop()
 {
-
+#pragma mark mcp
    if (sincemcp > 10)
    {
       if (Serial)
@@ -946,6 +952,9 @@ void loop()
             minanzeige = anzeige;
          }
          lcd_gotoxy(0, 3);
+         
+         lcd_putint(minanzeige);
+         lcd_putc(' ');
          lcd_putint(anzeige - minanzeige);
          lcd_putc(' ');
          lcd_putint(emittermittel);
@@ -1016,22 +1025,28 @@ void loop()
       //  lcd.print(pot0);
      */
    }
+#pragma mark blink 
    if (sinceblink > 500)
    {
       sinceblink = 0;
+      loopcounter++;
       //_delay_ms(10);
       //pinMode(LOOPLED, OUTPUT);
       digitalWriteFast(LOOPLED, !digitalReadFast(LOOPLED));
       //lcd_putc('a');
       //lcd_puts("blink");
+      lcd_gotoxy(16, 0);
+      lcd_puthex(sourcestatus);
       lcd_gotoxy(0,1);
       lcd_puts("A: ");
       lcd_puthex(tastencodeA);
+      lcd_putc(' ');
       lcd_puthex(loopstatus);
       lcd_putc(' ');
-      lcd_putc('*');
-      lcd_putc(3);
-      lcd_putc('*');
+      lcd_putint(speed);
+      lcd_gotoxy(19,3);
+      lcd_putc(loopcounter & 0x07);
+      
 
       //  lcd.setCursor(0,1);
       //  lcd.print("A ");
@@ -1144,7 +1159,7 @@ void loop()
       // ************************************
       loknummer = buffer[20];
       
-      
+      sourcestatus = buffer[21];
       
       Serial.println(" ");
       Serial.print("******************  usbtask *** ");
@@ -2061,12 +2076,17 @@ void loop()
   //       Serial.println(speed_raw);
   //       //  lcd.setCursor(0,0);
   //       //  lcd.print("Lok0");
+         lcd_gotoxy(0, 0);
+         lcd_puts("Lok0 ");
+         lcd_puthex(speed_raw);
          if (speed_raw < 10)
          {
+            lcd_puts("min");
   //          //  lcd.print(" ");
          }
          else
          {
+            lcd_putint(speed_raw);
             // //  lcd.print("speed ");
          }
 //         //  lcd.print(speed_raw);
