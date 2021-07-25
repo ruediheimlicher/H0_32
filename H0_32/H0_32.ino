@@ -131,11 +131,11 @@ float sinpos = 0;
 #define SPI_CLK   13
 #define SPI_MISO  12
 #define SPI_MOSI  11
-#define SPI_CS 10
+#define SPI_CS    10
 
 
 
-#define ANZLOKALLOKS       1 // anz loks bei lokalem Betrieb
+#define ANZLOKALLOKS       2 // anz loks bei lokalem Betrieb
 
 
 gpio_MCP23S17 mcp0(10,0x20);//instance 0 (address A0,A1,A2 tied to 0)
@@ -145,6 +145,7 @@ uint8_t regB = 0;
 volatile uint8_t tastencodeA = 0;
 volatile uint8_t tastencodeB = 0;
 uint8_t tastenstatusA = 0;
+//pi.__BEGIN_DECLS
 
 volatile uint8_t tastenadresseA = 0;
 volatile uint8_t tastenadresseB = 0;
@@ -864,6 +865,7 @@ void loop()
 #pragma mark mcp
    if (sincemcp > 10)
    {
+      /*
       if (Serial)
       {
          loopstatus |= (1<<SERIAL_OK);
@@ -872,10 +874,12 @@ void loop()
       {
 //        loopstatus &= ~(1<<SERIAL_OK);
       }
+       */
       sincemcp = 0;
       tastencodeA = 0xFF - mcp0.gpioReadPortA(); // active taste ist LO > invertieren
       tastenadresseA = (tastencodeA & 0xF0) >> 4;
       lokaladressearray[0] = (tastencodeA & 0xF0) >> 4;
+            
       /*
       for (uint8_t i=0;i<4;i++)
       {
@@ -959,10 +963,7 @@ void loop()
          lcd_putc(' ');
          lcd_putint(emittermittel);
          lcd_putc(' ');
-         lcd_putc('*');
-         lcd_putc(3);
-         lcd_putc('*');
-         //  lcd.print(anzeige - minanzeige);
+          //  lcd.print(anzeige - minanzeige);
          //  lcd.print(" ");
          //  lcd.print(emitter);
          //  lcd.print(" ");
@@ -1038,25 +1039,27 @@ void loop()
       lcd_gotoxy(16, 0);
       lcd_puthex(sourcestatus);
       lcd_gotoxy(0,1);
-      lcd_puts("A: ");
+      lcd_puts("A ");
       lcd_puthex(tastencodeA);
+      lcd_putc(' ');
+      lcd_puts("B ");
+      lcd_puthex(tastencodeB);
       lcd_putc(' ');
       lcd_puthex(loopstatus);
       lcd_putc(' ');
       lcd_putint(speed);
-      lcd_gotoxy(19,3);
+      uint8_t strompos = (emittermittel)/10;
+      lcd_gotoxy(18,3);
       lcd_putc(loopcounter & 0x07);
-      
-
-      //  lcd.setCursor(0,1);
-      //  lcd.print("A ");
-      //  lcd.print(tastencodeA,HEX);
-       //  lcd.print(" ");
-      //  lcd.print(tastenadresseA,HEX);
-  //    //  lcd.print(" B ");
-      //   //  lcd.setCursor(12,1);
- //     //  lcd.print(tastenadresseB,HEX);
-      
+      lcd_putc(strompos);
+      lcd_gotoxy(0, 2);
+      lcd_putint(localpotarray[0]);
+      lcd_putc(' ');
+      lcd_puthex(taskarray[0]);
+      lcd_putc(' ');
+      lcd_putint(localpotarray[1]);
+      lcd_putc(' ');
+      lcd_puthex(taskarray[1]);
       Serial.print("speed: ");
       Serial.print(speed);
       
@@ -1296,8 +1299,7 @@ void loop()
                uint8_t speed_red = 0;
                //             Serial.print("speed_raw 0: ");
                //             Serial.println(speed_raw);
-               //  lcd.setCursor(0,0);
-               ////  lcd.print("Lok0");
+   
                if (speed_raw < 10)
                {
                   //  lcd.print(" ");
@@ -1827,17 +1829,6 @@ void loop()
                uint8_t speed_red = 0;
                Serial.print("speed_raw 0: ");
                Serial.println(speed_raw);
-               //  lcd.setCursor(0,0);
-               ////  lcd.print("Lok0");
-               if (speed_raw < 10)
-               {
-                  //  lcd.print(" ");
-               }
-               else
-               {
-                  // //  lcd.print("speed ");
-               }
-               //  lcd.print(speed_raw);
                
                
                if (speed_raw < 2) // stillstand oder Richtungswachsel
@@ -2039,9 +2030,10 @@ void loop()
    else if (sourcestatus & 0x01)
    {
      // if (digitalReadFast(SOURCECONTROL) == 1)
+    //  for (uint8_t localnum = 0;localnum < ANZLOKALLOKS;localnum++;)
       {
-         loknummer =0;
-         
+         //loknummer =localnum;
+         loknummer = 1;
           for (uint8_t i=0;i<4;i++)
           {
             // if (tastenadresseA & (1<<i))
@@ -2056,6 +2048,7 @@ void loop()
              
              
           }
+         
           
          // repetition address
           taskarray[loknummer][12] = taskarray[loknummer][0] ;
@@ -2081,7 +2074,9 @@ void loop()
   //       //  lcd.setCursor(0,0);
   //       //  lcd.print("Lok0");
          lcd_gotoxy(0, 0);
-         lcd_puts("Lok0 ");
+         lcd_puts("Lok");
+         lcd_putint1(loknummer);
+         lcd_putc(' ');
          lcd_puthex(speed_raw);
          if (speed_raw < 10)
          {
