@@ -33,6 +33,9 @@
 
 #include <EEPROM.h>
 
+//#include <RF24.h>
+//#include <RF24Network.h>
+
 // Load Wi-Fi library
 //#include <ESP8266WiFi.h>
 
@@ -54,11 +57,11 @@ ADC *adc = new ADC(); // adc object
 #define MAXWERT  4096 // Nullpunkt
 
 
-#define LOOPLED 4 // 
+#define LOOPLED 0 // 
 
-#define TAKT_PIN 0
-#define OUT_PIN 1
-#define OUT_PIN_INV 2
+#define TAKT_PIN 4
+#define OUT_PIN 2
+#define OUT_PIN_INV 1
 
 #define CURR_PIN A4
 
@@ -364,7 +367,7 @@ void ADC_init(void)
 
 void stromtimerfunction()
 {
-   emitter = 2*adc->analogRead(CURR_PIN);
+   emitter = adc->analogRead(CURR_PIN);
    emitterarray[emittermittelcounter & 0x07] = emitter;
    emittermittelcounter++;
    
@@ -936,7 +939,7 @@ void loop()
    if (sinceemitter > 200)
    {
       sinceemitter = 0;
- //     emitter = adc->analogRead(CURR_PIN); // in stromtimerfunktion
+      //     emitter = adc->analogRead(CURR_PIN); // in stromtimerfunktion
       
       Serial.print(" data: \t");
       emittermittel = 0;
@@ -947,19 +950,19 @@ void loop()
          //       Serial.print("\t");
          emittermittel += emitterarray[i];
       }
-       
+      
       //    Serial.print("\t");
       emittermittel /= 8;
       Serial.print("emittermittel: ");
       Serial.print(emittermittel);
-     // Serial.print(byte(0));
+      // Serial.print(byte(0));
       
-     // Serial.print("\n");
+      // Serial.print("\n");
       
       //  lcd.setCursor(4,0);
       if (emitter < 0xFF)
       {
- 
+         
          uint8_t anzeige = (emittermittel);
          anzeige = anzeige ^ 0xFF;
          if (anzeige < minanzeige)
@@ -968,19 +971,10 @@ void loop()
          }
          lcd_gotoxy(0, 3);
          
-         lcd_putint(minanzeige);
-         lcd_putc(' ');
-         lcd_putint(anzeige - minanzeige);
+         lcd_putint(0xFF - emittermittel);
          lcd_putc(' ');
          lcd_putint(emittermittel);
          lcd_putc(' ');
-          //  lcd.print(anzeige - minanzeige);
-         //  lcd.print(" ");
-         //  lcd.print(emitter);
-         //  lcd.print(" ");
-         //  lcd.print(emittermittel);
-         //  lcd.write((uint8_t)((anzeige - minanzeige)/2));
-         //  lcd.print(" ");
       }
       else 
       {
@@ -988,54 +982,43 @@ void loop()
       }
       ////  lcd.setCursor(18,0);
       uint8_t pos = (emittermittel)/10;
-     // //  lcd.write((uint8_t)2);
-      
-      
-      //  lcd.setCursor(0,2);
-      //  lcd.print("A ");
-      //  lcd.print(tastencodeA);
-      //  lcd.print(" B ");
-   //   //  lcd.setCursor(12,1);
-      //  lcd.print(tastencodeB);
-      //  lcd.print(" ");
-      //  lcd.print(tastenstatusA); // tastenstatusA |= tastencodeB;
-      
+       
       ////  lcd.print("*");
       sendbuffer[10] = 0xAB;
       sendbuffer[12] = emitter & 0x00FF;
       sendbuffer[13] = (emitter & 0xFF00)>>8;
       /*
-      uint8_t n = RawHID.send(sendbuffer, 10);
-      if (n > 0) 
-      {
-          Serial.print(F("Transmit packet "));
-          Serial.println(n);
-         // Serial.print(" count: ");
-         // Serial.println(packetCount );
-         packetCount = packetCount + 1;
-      } else 
-      {
-         Serial.println(F("Unable to transmit packet"));
-      }
-      */
-  //    Serial.print("emittermittel: ");
-  //    Serial.print(emittermittel);
-  //    Serial.print("\n");
-
-    /*  
-      uint16_t pot0 = readPot(A0);
-      //  lcd.setCursor(12,0);
-      if (pot0 < 10)
-      {
-         //  lcd.print("  ");
-      }
-      else if (pot0 < 100)
-      {
-         //  lcd.print(" ");
-      }
-      //  lcd.setCursor(12,0);
-      //  lcd.print(pot0);
-     */
+       uint8_t n = RawHID.send(sendbuffer, 10);
+       if (n > 0) 
+       {
+       Serial.print(F("Transmit packet "));
+       Serial.println(n);
+       // Serial.print(" count: ");
+       // Serial.println(packetCount );
+       packetCount = packetCount + 1;
+       } else 
+       {
+       Serial.println(F("Unable to transmit packet"));
+       }
+       */
+      //    Serial.print("emittermittel: ");
+      //    Serial.print(emittermittel);
+      //    Serial.print("\n");
+      
+      /*  
+       uint16_t pot0 = readPot(A0);
+       //  lcd.setCursor(12,0);
+       if (pot0 < 10)
+       {
+       //  lcd.print("  ");
+       }
+       else if (pot0 < 100)
+       {
+       //  lcd.print(" ");
+       }
+       //  lcd.setCursor(12,0);
+       //  lcd.print(pot0);
+       */
    }
 #pragma mark blink 
    if (sinceblink > 500)
