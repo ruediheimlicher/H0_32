@@ -1,3 +1,7 @@
+#include <Wire.h>
+#include <WireIMXRT.h>
+#include <WireKinetis.h>
+
 ///
 /// @mainpage	Robot_32
 ///
@@ -19,14 +23,15 @@
 // !!! Help: http://bit.ly/2AdU7cu
 
 #include "Arduino.h"
-
+#include <stdint.h>
 #include <ADC.h>
 #include <ADC_util.h>
 
 #include <SPI.h>
 #include "gpio_MCP23S17.h"
+
 //#include <Wire.h> 
-#include <LiquidCrystal_I2C.h>
+//#include <LiquidCrystal_I2C.h>
 
 #include "lcd.h"
 #include "analog.h"
@@ -57,23 +62,25 @@ ADC *adc = new ADC(); // adc object
 #define MAXWERT  4096 // Nullpunkt
 
 
-#define LOOPLED 0 // 
+#define LOOPLED      0 // 
 
-#define TAKT_PIN 4
-#define OUT_PIN 2
-#define OUT_PIN_INV 1
+#define TAKT_PIN     4
+#define OUT_PIN      2
+#define OUT_PIN_INV  1
 
-#define CURR_PIN A4
+#define CONTROL_PIN  6
 
-#define ANZLOKS       3
+#define CURR_PIN     A4
+
+#define ANZLOKS       4
 
 #define POT_0_PIN    A0
 #define POT_1_PIN    A1
 #define POT_2_PIN    A2
 #define POT_3_PIN    A3
 
-#define SOURCECONTROL        6 // Eingang, HI wenn local
-#define LOKSYNC        7
+#define SOURCECONTROL    6 // Eingang, HI wenn local
+#define LOKSYNC         7
 
 
 
@@ -181,7 +188,7 @@ char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EM
 #define OPEN   0x02FE  // 0000001011111110
 
 #define TIMERINTERVALL  24
-#define PAUSE 12
+#define PAUSE 6
 // Utilities
 elapsedMillis sinceringbuffer;
 
@@ -207,7 +214,7 @@ volatile uint8_t           pause = PAUSE;
 volatile uint8_t           richtung = 1; // vorwaerts
 
 volatile uint8_t           paketpos = 0;
-volatile uint8_t           paketmax = 4;
+volatile uint8_t           paketmax = ANZLOKS;
 
 volatile uint8_t           commandpos = 0; // pos im command
 volatile uint8_t           bytepos = 0; // pos im Ablauf
@@ -264,6 +271,11 @@ void OSZI_B_HI(void)
       digitalWriteFast(OSZI_PULS_B,HIGH);
 }
 
+void OSZI_B_TOGG(void)
+{
+   if (TEST)
+      digitalWrite(OSZI_PULS_B, !digitalRead(OSZI_PULS_B));
+}
 
 void pakettimerfunction() 
 { 
@@ -281,6 +293,12 @@ void pakettimerfunction()
    
    if ((bytepos) == 0)
    {
+      
+      if(paketpos == 0)
+         {
+         OSZI_B_LO();
+         }
+      
       if ((sourcestatus & 0x01) && (paketpos == 0))
       {
          OSZI_A_LO();
@@ -292,15 +310,21 @@ void pakettimerfunction()
          digitalWriteFast(LOKSYNC,LOW);
       }
    }
+   
    if (aktualcommand & (1<<commandpos))
    {
       digitalWriteFast(OUT_PIN,HIGH);
       digitalWriteFast(OUT_PIN_INV,LOW);
+      
+      digitalWriteFast(CONTROL_PIN,HIGH);
+      
    }
    else
    {
       digitalWriteFast(OUT_PIN,LOW);
       digitalWriteFast(OUT_PIN_INV,HIGH);
+      
+      digitalWriteFast(CONTROL_PIN,LOW);
    }
    if (commandpos < 15)
    {
@@ -310,6 +334,7 @@ void pakettimerfunction()
    {
       commandpos = 0;
       digitalWriteFast(LOKSYNC,HIGH);
+      
       digitalWriteFast(OUT_PIN,LOW);
       digitalWriteFast(OUT_PIN_INV,HIGH);
       
@@ -324,6 +349,7 @@ void pakettimerfunction()
          }
          else 
          {
+            OSZI_B_HI();
             paketpos = 0;
          }
          
@@ -406,6 +432,11 @@ void setup()
    pinMode(OUT_PIN_INV, OUTPUT);
     digitalWriteFast(OUT_PIN_INV, HIGH); // HI, OFF 
 
+   // Control
+   pinMode(CONTROL_PIN, OUTPUT);
+   digitalWriteFast(CONTROL_PIN, HIGH); // HI, OFF 
+
+   
    pinMode(LOKSYNC, OUTPUT);
    digitalWriteFast(LOKSYNC, HIGH); 
    
@@ -414,7 +445,7 @@ void setup()
    pinMode(OSZI_PULS_B, OUTPUT);
    digitalWriteFast(OSZI_PULS_B, HIGH); 
    
-   pinMode(SOURCECONTROL, INPUT);
+   //ghpinMode(SOURCECONTROL, INPUT);
    
    LCD_init();
    
@@ -888,7 +919,7 @@ void loop()
       // bit 0: Funktion
       // bit 1: Richtungsimpuls
       
-      // bit 4-7: Adresse
+      // bit 4-7: Adresse lesen: SPI MCP23S17
       tastencodeA = 0xFF - mcp0.gpioReadPortA(); // active taste ist LO > invertieren
       tastenadresseA = (tastencodeA & 0xF0) >> 4; // Bit 7-4
       lokaladressearray[0] = (tastencodeA & 0xF0) >> 4;
@@ -930,7 +961,7 @@ void loop()
       // Pot auslesen
       for (uint8_t i=0;i<ANZLOKALLOKS;i++)
       {
-         localpotarray[i] = adc->analogRead(potpinarray[i]);
+         localpotarray[i] = adc->analogRead(potpinarray[i]); // 8 bit
          sendbuffer[16+i] = localpotarray[i];
       }
       
@@ -941,7 +972,7 @@ void loop()
       sinceemitter = 0;
       //     emitter = adc->analogRead(CURR_PIN); // in stromtimerfunktion
       
-      Serial.print(" data: \t");
+      //Serial.print(" data: \t");
       emittermittel = 0;
       for (uint8_t i=0;i<8;i++)
       {
@@ -953,11 +984,11 @@ void loop()
       
       //    Serial.print("\t");
       emittermittel /= 8;
-      Serial.print("emittermittel: ");
-      Serial.print(emittermittel);
+ //     Serial.print("emittermittel: ");
+ //     Serial.print(emittermittel);
       // Serial.print(byte(0));
       
-      // Serial.print("\n");
+  //     Serial.print("\n");
       
       //  lcd.setCursor(4,0);
       if (emitter < 0xFF)
@@ -1054,8 +1085,8 @@ void loop()
       lcd_putint(localpotarray[1]);
       lcd_putc(' ');
       lcd_puthex(taskarray[1]);
-      Serial.print("speed: ");
-      Serial.print(speed);
+      //Serial.print("speed: ");
+      //Serial.print(speed);
       
       /*
        Serial.print("speed: ");
@@ -1126,6 +1157,7 @@ void loop()
        Serial.print(" write: ");
        Serial.println(ringbuffer.write);
        */
+      //Serial.print("\n");
    }
    
    #pragma mark USB
@@ -1158,9 +1190,10 @@ void loop()
       
       sourcestatus = buffer[21];
       
-      Serial.println(" ");
+      //Serial.println(" ");
       Serial.print("******************  usbtask *** ");
       printHex8(usbtask);
+      Serial.printf("sourcestatus: %d loknummer: %d\n",sourcestatus,loknummer);
       for (int i=0; i<24; i++) 
       {
          Serial.print(buffer[i]);
@@ -1182,6 +1215,8 @@ void loop()
             
          }
       }
+     
+      Serial.printf("sourcestatus 2: %d\n ",sourcestatus);
 #pragma mark TASK 
       if (sourcestatus & 0x02)
       {
@@ -1376,7 +1411,7 @@ void loop()
                
             }break;
                
-            case 0xC0:
+            case 0xC0: // Richtung
             {
                //  Serial.print("Richtung b 17: ");
                //  Serial.println(buffer[17]);
@@ -1440,7 +1475,7 @@ void loop()
                
             }break;
                
-            case 0xD0:
+            case 0xD0: // Funktion
             {
                Serial.print("D0 Funktion b16: ");
                Serial.println(buffer[16]);
@@ -2109,6 +2144,7 @@ void loop()
          }
          else 
          {
+            uint8_t speed_full = localpotarray[localnum] ; //8-bit Wert, 
             speed = speed_raw;
             
 //            Serial.print("speed 0: ");
