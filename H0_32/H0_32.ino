@@ -296,7 +296,7 @@ void pakettimerfunction()
       
       if(paketpos == 0)
          {
-         OSZI_B_LO();
+         //OSZI_B_LO();
          }
       
       if ((sourcestatus & 0x01) && (paketpos == 0))
@@ -343,14 +343,21 @@ void pakettimerfunction()
       {
          bytepos = 0;
          OSZI_A_HI();
+         OSZI_B_LO();
          if (paketpos < paketmax - 1)
          {
             paketpos++; // jede Lok ein Paket
+            if (paketpos == paketmax - 1) // Paket fertig
+            {
+               //
+               OSZI_B_HI();
+               paketpos = 0;
+            }
          }
          else 
          {
-            OSZI_B_HI();
-            paketpos = 0;
+            
+            //paketpos = 0;
          }
          
       }
@@ -412,7 +419,7 @@ void setup()
    paketTimer.begin(pakettimerfunction,timerintervall);
    paketTimer.priority(0);
    
-   stromTimer.begin(stromtimerfunction, 5000);
+   //stromTimer.begin(stromtimerfunction, 5000);
    
    pinMode(LOOPLED, OUTPUT);
    
@@ -915,6 +922,7 @@ void loop()
 //        loopstatus &= ~(1<<SERIAL_OK);
       }
        */
+      
       sincemcp = 0;
       // bit 0: Funktion
       // bit 1: Richtungsimpuls
@@ -924,6 +932,7 @@ void loop()
       tastenadresseA = (tastencodeA & 0xF0) >> 4; // Bit 7-4
       lokaladressearray[0] = (tastencodeA & 0xF0) >> 4;
       lokalcodearray[0] = tastencodeA & 0x0F; // Bit 0-3
+      
       /*
       for (uint8_t i=0;i<4;i++)
       {
@@ -1087,7 +1096,7 @@ void loop()
       lcd_puthex(taskarray[1]);
       //Serial.print("speed: ");
       //Serial.print(speed);
-      
+      Serial.printf("USB sourcestatus 2: %d\n ",sourcestatus);
       /*
        Serial.print("speed: ");
        Serial.print(speed);
@@ -1175,7 +1184,7 @@ void loop()
          //       int b = buffer[0] & (1 << i);
          //       Serial.print((int)buffer[i]);
          //       Serial.print("\t");
-         //digitalWrite(i, b);
+         //       digitalWrite(i, b);
       }
       //     Serial.println();
       //     Serial.print(hb);
@@ -1193,7 +1202,7 @@ void loop()
       //Serial.println(" ");
       Serial.print("******************  usbtask *** ");
       printHex8(usbtask);
-      Serial.printf("sourcestatus: %d loknummer: %d\n",sourcestatus,loknummer);
+      Serial.printf("USB sourcestatus: %d loknummer: %d\n",sourcestatus,loknummer);
       for (int i=0; i<24; i++) 
       {
          Serial.print(buffer[i]);
@@ -1203,11 +1212,11 @@ void loop()
       
       if (timerintervall != buffer[18])
       {
-         Serial.print("timerintervall changed\n");
+        // Serial.print("timerintervall changed\n");
          
          paketTimer.update(buffer[18]); 
          timerintervall = buffer[18];
-         Serial.print(timerintervall);
+      //   Serial.print(timerintervall);
          EEPROM.update(0xA0,timerintervall);
          
          if ( loopstatus & (1<<FIRSTRUN))
@@ -1215,8 +1224,9 @@ void loop()
             
          }
       }
+      
      
-      Serial.printf("sourcestatus 2: %d\n ",sourcestatus);
+      Serial.printf("USB sourcestatus 2: %d\n ",sourcestatus);
 #pragma mark TASK 
       if (sourcestatus & 0x02)
       {
@@ -1529,6 +1539,18 @@ void loop()
                
                
             }break;
+/*
+            case 0xE1: // Timerintervall
+            {
+               Serial.print("E1 timerintervall b19: ");
+               Serial.println(buffer[18]);
+               timerintervall = buffer[18];
+               
+               
+            }break;
+ */              
+               
+               
                
             case 0xA1: // Lok 1
             {
@@ -2103,6 +2125,7 @@ void loop()
   //       Serial.println(speed_raw);
   //       //  lcd.setCursor(0,0);
   //       //  lcd.print("Lok0");
+ /*        
          lcd_gotoxy(0, 0);
          lcd_puts("Lok");
          lcd_putint1(localnum);
@@ -2121,7 +2144,7 @@ void loop()
          }
 //         //  lcd.print(speed_raw);
          
-         
+ */        
          if (speed_raw < 2) // stillstand oder Richtungswachsel
          {
             // speed auf 0 setzen
