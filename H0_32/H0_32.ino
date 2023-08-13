@@ -44,6 +44,9 @@
 // Load Wi-Fi library
 //#include <ESP8266WiFi.h>
 
+//#include <Adafruit_GFX.h>
+//#include <Adafruit_SSD1306.h>
+
 
 ADC *adc = new ADC(); // adc object
 // Set parameters
@@ -122,6 +125,12 @@ volatile uint8_t loknummer = 0;
 
 volatile uint8_t speed = 0;
 
+volatile uint8_t richtungcounter = 0; // mehrere richtungdatenpakete bei Richtungswechsel
+
+volatile uint8_t richtungstatus = 0;
+#define MAXRICHTUNGCOUNTER 4 // max anzahl richtungdatenpakete
+#define RICHTUNGSTART 0
+#define RICHTUNGEND 1
 
 
 uint8_t minanzeige = 0xFF;
@@ -187,8 +196,8 @@ char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EM
 #define LO     0x0202  // 0000001000000010
 #define OPEN   0x02FE  // 0000001011111110
 
-#define TIMERINTERVALL  24
-#define PAUSE 6
+#define TIMERINTERVALL  26
+#define PAUSE 10
 // Utilities
 elapsedMillis sinceringbuffer;
 
@@ -516,9 +525,9 @@ void setup()
       Serial.print("\n");
    }
  
-   taskarray[0][0] = adressearray[0];
-   
    eepromadressearray[0][0] = tritarray[buffer[8]];
+   
+   taskarray[0][0] = adressearray[0];
    taskarray[0][1] = adressearray[1];
    taskarray[0][2] = adressearray[2];
    taskarray[0][3] = adressearray[3];
@@ -931,6 +940,9 @@ void loop()
       tastencodeA = 0xFF - mcp0.gpioReadPortA(); // active taste ist LO > invertieren
       tastenadresseA = (tastencodeA & 0xF0) >> 4; // Bit 7-4
       lokaladressearray[0] = (tastencodeA & 0xF0) >> 4;
+      
+      
+      //lokaladressearray[0] ^= lokaladressearray[0];
       lokalcodearray[0] = tastencodeA & 0x0F; // Bit 0-3
       
       /*
@@ -948,6 +960,7 @@ void loop()
       */
       tastencodeB = 0xFF - mcp0.gpioReadPortB(); // active taste ist LO > invertieren
       tastenadresseB = (tastencodeB & 0xF0) >> 4;
+      
       lokaladressearray[1] = (tastencodeB & 0xF0) >> 4;
       lokalcodearray[1] = tastencodeB & 0x0F;// Bit 0-3
 /*
@@ -974,7 +987,8 @@ void loop()
          sendbuffer[16+i] = localpotarray[i];
       }
       
-   }
+   } // if (sincemcp )
+   
 #pragma mark EMITTER 
    if (sinceemitter > 200)
    {
@@ -1059,7 +1073,8 @@ void loop()
        //  lcd.setCursor(12,0);
        //  lcd.print(pot0);
        */
-   }
+   } // if sinceemitter
+   
 #pragma mark blink 
    if (sinceblink > 500)
    {
@@ -1096,7 +1111,7 @@ void loop()
       lcd_puthex(taskarray[1]);
       //Serial.print("speed: ");
       //Serial.print(speed);
-      Serial.printf("USB sourcestatus 2: %d\n ",sourcestatus);
+      //Serial.printf("USB sourcestatus 2: %d\n ",sourcestatus);
       /*
        Serial.print("speed: ");
        Serial.print(speed);
@@ -1167,7 +1182,7 @@ void loop()
        Serial.println(ringbuffer.write);
        */
       //Serial.print("\n");
-   }
+   } // if sincblinkk 500
    
    #pragma mark USB
    int n;
@@ -1445,6 +1460,7 @@ void loop()
                   
                   taskarray[0][5+i] = LO;
                }
+               
                
                if (buffer[17] == 1)// Richtung Toggeln
                {
@@ -1887,7 +1903,7 @@ void loop()
                   
                   for (uint8_t i=0;i<4;i++)
                   {
-                     Serial.println("speed_raw 0: HALT");
+                     //Serial.println("speed_raw 0: HALT");
                      //Serial.println(speed_raw);
                      
                      taskarray[2][5+i] = LO;
@@ -2091,11 +2107,11 @@ void loop()
             // if (tastenadresseA & (1<<i))
             if (lokaladressearray[localnum] & (1<<i))
              {
-                taskarray[localnum][i] = tritarray[0];
+                taskarray[localnum][i] = tritarray[2];
              }
              else
              {
-                taskarray[localnum][i] = tritarray[2];
+                taskarray[localnum][i] = tritarray[0];
              }
              
              
@@ -2119,6 +2135,19 @@ void loop()
          {
             speed_raw = 15;
          }
+         
+         /*
+          if (richtungstatus & (1<<RICHTUNGSTART)) // Richtungswechsel im Gang
+          {
+            richtungcounter++;
+          if (richtungcounter > 4)
+          {
+            richtungstatus &= ~(1<<RICHTUNGSTART); // Richtungswechsel beenden
+          taskarray[localnum][5] = HI; // Richtungbit reset
+          richtungcounter = 0;
+          }
+          }
+          */
          
          uint8_t speed_red = 0;
   //       Serial.print("local speed_raw 0: ");
@@ -2145,8 +2174,11 @@ void loop()
 //         //  lcd.print(speed_raw);
          
  */        
+         
+#pragma mark local speed
          if (speed_raw < 2) // stillstand oder Richtungswachsel
          {
+            
             // speed auf 0 setzen
             for (uint8_t i=0;i<4;i++)
             {
@@ -2154,6 +2186,7 @@ void loop()
                //Serial.println(speed_raw);
                
                taskarray[localnum][5+i] = LO;
+               
             }
             
             // tritt nicht auf, 1 wird uebersprungen
@@ -2162,13 +2195,14 @@ void loop()
                Serial.println("speed_raw 0: WENDEN");
                taskarray[localnum][5] = HI; // richtungswechsel fuer speed = 1
                
-               
             }
-         }
+         } // if speed_raw < 2
          else 
          {
             uint8_t speed_full = localpotarray[localnum] ; //8-bit Wert, 
             speed = speed_raw;
+            
+            // speed setzen
             
 //            Serial.print("speed 0: ");
  //           Serial.println(speed);
@@ -2179,19 +2213,21 @@ void loop()
  //              Serial.print("\n");
                if (speed & (1<<i))
                {
-//                 Serial.print("HI");
+//                 Serial.print("1");
                   speedarray[i] = HI; 
                   taskarray[localnum][5+i] = HI;
                }
                else
                {
-    //              Serial.print("LO");
+    //              Serial.print("0");
                   speedarray[i] = LO; 
                   taskarray[localnum][5+i] = LO;
                }
     //           Serial.print("\n");
             }
-         }
+         } // speed_raw >= 2
+         
+         
       /*   
          for (int i=5; i<9; i++) 
          {
@@ -2217,39 +2253,57 @@ void loop()
          */
    
          // Richtung
-         /*
-          uint8_t lokalstatus = 0;
-          #define LOKALRICHTUNGBIT0 1
-          elapsedMillis sincelocalrichtung;
-
-          */
-           if (lokalcodearray[localnum] & 0x02) // Richtungsimpuls, bit 1
+          
+         
+           if (lokalcodearray[localnum] & 0x02) // von debounce,  Richtungsimpuls, bit 1
            {
-              // speed auf 0 setzen
-               for (uint8_t i=1;i<4;i++) 
-               {
-                 // Serial.println("speed_raw 0: HALT");
+              
+              if(!(richtungstatus & (1<<RICHTUNGSTART))) // start richtungtask
+              {
+                 Serial.println("RICHTUNGSTART gesetzt");
+                 richtungstatus |= (1<<RICHTUNGSTART); // Beginn Richtungswechsel
+                 richtungcounter = 0;
                   
-                  taskarray[localnum][5+i] = LO;
-               }
-
-            taskarray[localnum][5] = HI; 
- //             //  lcd.setCursor(6,0);
- //             //  lcd.print("W0");
+                    
+              }
+              else
+              {
+                 //richtungcounter++;
+              }
+              
+              
+              // speed auf 0 setzen
+              for (uint8_t i=1;i<4;i++) 
+              {
+                  //Serial.println("speed_raw 0: HALT");
+                 
+                 taskarray[localnum][5+i] = LO;
+              }
+          
+              taskarray[localnum][5] = HI; // Richtungbit set
+              
               lokalstatus |= (1<<LOKALRICHTUNGBIT0);
+         
+               
               sincelocalrichtung = 0;
               
            }
-           else if ((lokalstatus & (1<<LOKALRICHTUNGBIT0)) && (sincelocalrichtung > 1000)) // nach 0.5s zuruecksetzen
+           else //if ((lokalstatus & (1<<LOKALRICHTUNGBIT0)) && (sincelocalrichtung > 1000)) // nach 0.5s zuruecksetzen
+           
            {
-              lokalstatus &= ~(1<<LOKALRICHTUNGBIT0);
-              sincelocalrichtung = 0;
-              taskarray[localnum][5] = LO;
-   //           //  lcd.setCursor(6,0);
-   //           //  lcd.print("W1");
-              
-              
+              if ((lokalstatus & (1<<LOKALRICHTUNGBIT0)) && (sincelocalrichtung > 4000)) // nach 0.5s zuruecksetzen
+              {
+                 lokalstatus &= ~(1<<LOKALRICHTUNGBIT0);
+                 sincelocalrichtung = 0;
+                 taskarray[localnum][5] = LO;
+                 //           //  lcd.setCursor(6,0);
+                 //           //  lcd.print("W1");
+                 
+                 
+              }
            }
+         
+         
          // repetition speed 
           taskarray[localnum][17] = taskarray[localnum][5]; // auch richtung
           taskarray[localnum][18] = taskarray[localnum][6];
@@ -2322,7 +2376,8 @@ void loop()
        
    }   
 
-#pragma mark sinceringbuffer    
+#pragma mark sinceringbuffer  
+   
    if ((sinceringbuffer > 32))// && (usbtask == SET_RING)) // naechster Schritt
    {
       sinceringbuffer = 0;

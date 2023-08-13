@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "230811-092127-teensy31",
+			"path": "../../../PlatformIO/Projects/230811-092127-teensy31"
+		},
+		{
+			"name": "CNC_Slave_41",
+			"path": "../../CNC-Projekt/CNC_Slave_41"
+		},
+		{
+			"name": "VS_RobotAuto_T",
+			"path": "../../../Elektronik/ESP-32/ESPNOW/RobotAuto/Platformio/VS_RobotAuto_T"
+		}
+	],
+	"settings": {}
+}

@@ -42,7 +42,7 @@
 #	TouchScreen USBHost_t36 UTFT VirtualWire WS2812Serial Wire XBee 
 #	XPT2046_Touchscreen i2c_t3 ks0108 openGLCD ssd1351 x10 
 #
-APP_LIBS_LIST = ADC SPI  i2c_t3 TeensyThreads EEPROM Wire #RF24 #ESP8266WiFi LiquidCrystal_I2C 
+APP_LIBS_LIST = ADC SPI  i2c_t3 TeensyThreads EEPROM Wire  #Adafruit_GFX Adafruit_SSD1306 #RF24 #ESP8266WiFi LiquidCrystal_I2C 
 
 # List user's libraries here
 # !!! Help: http://bit.ly/2AEscDx
@@ -55,7 +55,7 @@ USER_LIBS_LIST = 0
 # !!! Help: http://bit.ly/2juEP91
 # default = empty = all
 #
-LOCAL_LIBS_LIST =
+LOCAL_LIBS_LIST = 0
 
 # List core, application and user's libraries to be excluded
 # !!! Help: http://bit.ly/2AijUOI
