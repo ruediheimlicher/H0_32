@@ -157,9 +157,9 @@ float sinpos = 0;
 #define ANZLOKALLOKS       2 // anz loks bei lokalem Betrieb
 
 
-gpio_MCP23S17 mcp0(10,0x20);//instance 0 (address A0,A1,A2 tied to 0)
+gpio_MCP23S17 mcp0(10,0x20);//instance 0 (address A0,A1,A2 tied to 0. Instance adresses from 0x20 to 0x27
 uint8_t regA = 0x0;
-uint8_t regB = 0;
+uint8_t regB = 0x0;
 
 volatile uint8_t tastencodeA = 0;
 volatile uint8_t tastencodeB = 0;
@@ -168,6 +168,27 @@ uint8_t tastenstatusA = 0;
 
 volatile uint8_t tastenadresseA = 0;
 volatile uint8_t tastenadresseB = 0;
+
+
+
+gpio_MCP23S17 mcp1(10,0x21);//instance 0 (address A0,A1,A2 tied to 0. Instance adresses from 0x20 to 0x27
+uint8_t reg1A = 0x0;
+uint8_t reg1B = 0x0;
+
+volatile uint8_t tastencode1A = 0;
+volatile uint8_t tastencode1B = 0;
+uint8_t tastenstatus1A = 0;
+//pi.__BEGIN_DECLS
+
+volatile uint8_t tastenadresse1A = 0;
+volatile uint8_t tastenadresse1B = 0;
+
+
+
+
+
+
+
 
 volatile uint8_t lokaladressearray[ANZLOKALLOKS] = {}; // Lok-Adressen
 volatile uint8_t lokalcodearray[ANZLOKALLOKS] = {}; // Lok-Codes (Richtung, Funktion)
@@ -187,7 +208,7 @@ elapsedMillis sincelocalrichtung;
 
 uint8_t potpinarray[4] = {POT_0_PIN,POT_1_PIN,POT_2_PIN,POT_3_PIN};
 
-char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EMPTY"};
+char const * buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EMPTY"};
 
 // Prototypes
 // !!! Help: http://bit.ly/2l0ZhTa
@@ -196,8 +217,9 @@ char* buffercode[4] = {"BUFFER_FAIL","BUFFER_SUCCESS", "BUFFER_FULL", "BUFFER_EM
 #define LO     0x0202  // 0000001000000010
 #define OPEN   0x02FE  // 0000001011111110
 
-#define TIMERINTERVALL  26
-#define PAUSE 10
+#define TIMERINTERVALL  24 //26 als Versuch
+#define PAUSE 6 // 10 als Versuch
+
 // Utilities
 elapsedMillis sinceringbuffer;
 
@@ -461,7 +483,7 @@ void setup()
    pinMode(OSZI_PULS_B, OUTPUT);
    digitalWriteFast(OSZI_PULS_B, HIGH); 
    
-   //ghpinMode(SOURCECONTROL, INPUT);
+   
    
    LCD_init();
    
@@ -615,32 +637,7 @@ void setup()
    taskarray[2][19] = taskarray[2][7];
    taskarray[2][20] = taskarray[2][8];
 
-   /*
-   commandarray0[0] = adressearray[0];
-   commandarray0[1] = adressearray[1];
-   commandarray0[2] = adressearray[2];
-   commandarray0[3] = adressearray[3];
-   commandarray0[4] = HI; // Lampe
-   commandarray0[5] = speedarray[0];
-   commandarray0[6] = speedarray[1];
-   commandarray0[7] = speedarray[2];
-   commandarray0[8] = speedarray[3];
-   
-   commandarray0[9] = 0;
-   commandarray0[10] = 0;
-   commandarray0[11] = 0;
-   
-   commandarray0[12] = commandarray0[0];
-   commandarray0[13] = commandarray0[1];
-   commandarray0[14] = commandarray0[2];
-   commandarray0[15] = commandarray0[3];
-   commandarray0[16] = commandarray0[4];
-   commandarray0[17] = commandarray0[5];
-   commandarray0[18] = commandarray0[6];
-   commandarray0[19] = commandarray0[7];
-   commandarray0[20] = commandarray0[8];
-   */
-   aktualcommand = OPEN;
+    aktualcommand = OPEN;
    
    pinMode(POT_0_PIN, INPUT);
    pinMode(POT_1_PIN, INPUT);
@@ -941,10 +938,10 @@ void loop()
       tastenadresseA = (tastencodeA & 0xF0) >> 4; // Bit 7-4
       lokaladressearray[0] = (tastencodeA & 0xF0) >> 4;
       
-      
-      //lokaladressearray[0] ^= lokaladressearray[0];
       lokalcodearray[0] = tastencodeA & 0x0F; // Bit 0-3
       
+      // volatile uint16_t taskarray[8][32] = {0};
+      uint8_t diparrayA[4] = {};
       /*
       for (uint8_t i=0;i<4;i++)
       {
@@ -986,6 +983,12 @@ void loop()
          localpotarray[i] = adc->analogRead(potpinarray[i]); // 8 bit
          sendbuffer[16+i] = localpotarray[i];
       }
+      
+      // Weichen lesen
+      
+      tastencode1A = 0xFF - mcp1.gpioReadPortA(); // active taste ist LO > invertieren
+      tastencode1B = 0xFF - mcp1.gpioReadPortB(); // active taste ist LO > invertieren
+
       
    } // if (sincemcp )
    
@@ -1089,10 +1092,10 @@ void loop()
       lcd_puthex(sourcestatus);
       lcd_gotoxy(0,1);
       lcd_puts("A ");
-      lcd_puthex(tastencodeA);
+      lcd_puthex(tastenadresseA);
       lcd_putc(' ');
       lcd_puts("B ");
-      lcd_puthex(tastencodeB);
+      lcd_puthex(tastenadresseB);
       lcd_putc(' ');
       lcd_puthex(loopstatus);
       lcd_putc(' ');
@@ -2106,8 +2109,8 @@ void loop()
           {
             // if (tastenadresseA & (1<<i))
             if (lokaladressearray[localnum] & (1<<i))
-             {
-                taskarray[localnum][i] = tritarray[2];
+             { 
+                taskarray[localnum][i] = tritarray[2];// 230814: vertauscht
              }
              else
              {
