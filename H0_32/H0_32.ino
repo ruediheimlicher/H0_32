@@ -23,7 +23,8 @@
 // !!! Help: http://bit.ly/2AdU7cu
 
 #include "Arduino.h"
-#include <stdint.h>
+#include lcd_putc(strompos
+>
 #include <ADC.h>
 #include <ADC_util.h>
 
